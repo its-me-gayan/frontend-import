@@ -2,7 +2,7 @@ import { useApp } from '@/context/AppContext';
 import { useState } from 'react';
 
 export default function SettingsPage() {
-  const { t, showToast, whatsappConnected, whatsappConnecting, whatsappConfig, connectWhatsApp, disconnectWhatsApp } = useApp();
+  const { t, showToast, whatsappConnected, whatsappConnecting, whatsappConfig, connectWhatsApp, disconnectWhatsApp, whatsappAccounts, activeWhatsappId, setActiveWhatsappId } = useApp();
   const [step, setStep] = useState(0); // 0=idle, 1=form, 2=connecting
   const [form, setForm] = useState({ phone: '+94 77 123 4567', accountName: 'Gayan Perera Digital', accountId: '', apiToken: '' });
   const [showDisconnectConfirm, setShowDisconnectConfirm] = useState(false);
@@ -30,55 +30,72 @@ export default function SettingsPage() {
             <div className="text-sm font-bold text-foreground">WhatsApp Business Connection</div>
             <div className="text-xs text-muted-foreground mt-0.5">Meta Business API · Cloud API v18.0</div>
           </div>
-          {whatsappConnected ? (
-            <div className="inline-flex items-center gap-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 text-[11px] font-bold px-2.5 py-1 rounded-full">
-              <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse-dot" />
-              Connected
-            </div>
-          ) : (
-            <div className="inline-flex items-center gap-1.5 bg-muted text-muted-foreground text-[11px] font-bold px-2.5 py-1 rounded-full">
-              <div className="w-1.5 h-1.5 bg-muted-foreground rounded-full" />
-              Disconnected
-            </div>
-          )}
+          <button
+            className="text-xs font-semibold text-primary hover:underline"
+            onClick={() => setStep(1)}
+          >
+            + Add Another Number
+          </button>
         </div>
 
-        {/* Connected State */}
-        {whatsappConnected && (
+        {/* Multi-number switcher from prototype */}
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-6">
+          {whatsappAccounts.map((acc) => (
+            <div
+              key={acc.id}
+              onClick={() => setActiveWhatsappId(acc.id)}
+              className={`p-3 border rounded-lg cursor-pointer transition-all ${
+                activeWhatsappId === acc.id
+                  ? 'border-emerald-500 bg-emerald-50/50 dark:bg-emerald-900/10'
+                  : 'border-border hover:bg-muted'
+              }`}
+            >
+              <div className="flex items-center justify-between mb-1">
+                <div className="flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${activeWhatsappId === acc.id ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
+                  <span className={`text-xs font-bold ${activeWhatsappId === acc.id ? 'text-emerald-700 dark:text-emerald-400' : 'text-foreground'}`}>
+                    {acc.accountName}
+                  </span>
+                </div>
+                {acc.isDefault && <span className="text-[9px] font-bold uppercase tracking-wider bg-muted px-1.5 py-0.5 rounded text-muted-foreground">Default</span>}
+              </div>
+              <div className="text-[11px] text-muted-foreground">{acc.phone}</div>
+            </div>
+          ))}
+        </div>
+
+        {/* Connected State for active account */}
+        {activeWhatsappId && (
           <>
             <div className="grid grid-cols-2 gap-3 mb-4">
               <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">Business Phone Number</label>
-                <div className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">{whatsappConfig.phone}</div>
+                <div className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
+                  {whatsappAccounts.find(a => a.id === activeWhatsappId)?.phone}
+                </div>
               </div>
               <div>
                 <label className="text-xs font-semibold text-muted-foreground mb-1 block">Business Account Name</label>
-                <div className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">{whatsappConfig.accountName}</div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1 block">WhatsApp Business Account ID</label>
-                <div className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">{whatsappConfig.accountId || '—'}</div>
-              </div>
-              <div>
-                <label className="text-xs font-semibold text-muted-foreground mb-1 block">API Token</label>
-                <div className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">••••••••••••</div>
+                <div className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground">
+                  {whatsappAccounts.find(a => a.id === activeWhatsappId)?.accountName}
+                </div>
               </div>
             </div>
             <div className="flex gap-2">
               <button className="border border-border text-foreground text-sm font-semibold px-4 py-2 rounded-lg hover:bg-muted transition"
                 onClick={() => showToast('Testing connection...', 'info')}>🔄 Test Connection</button>
               <button className="bg-destructive text-destructive-foreground text-xs font-semibold px-3 py-2 rounded-lg hover:opacity-90 transition"
-                onClick={() => setShowDisconnectConfirm(true)}>Disconnect</button>
+                onClick={() => setShowDisconnectConfirm(true)}>Disconnect Account</button>
             </div>
 
             {/* Disconnect confirmation */}
             {showDisconnectConfirm && (
               <div className="mt-3 bg-destructive/10 border border-destructive/30 rounded-lg p-4">
-                <div className="text-sm font-semibold text-foreground mb-1">⚠️ Disconnect WhatsApp?</div>
-                <p className="text-xs text-muted-foreground mb-3">This will stop all automated messages and remove the API connection. You can reconnect later.</p>
+                <div className="text-sm font-semibold text-foreground mb-1">⚠️ Disconnect this WhatsApp number?</div>
+                <p className="text-xs text-muted-foreground mb-3">This will stop all automated messages for this number. You can reconnect later.</p>
                 <div className="flex gap-2">
                   <button className="bg-destructive text-destructive-foreground text-xs font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
-                    onClick={() => { disconnectWhatsApp(); setShowDisconnectConfirm(false); }}>Yes, Disconnect</button>
+                    onClick={() => { disconnectWhatsApp(activeWhatsappId); setShowDisconnectConfirm(false); }}>Yes, Disconnect</button>
                   <button className="border border-border text-foreground text-xs font-semibold px-4 py-2 rounded-lg hover:bg-muted transition"
                     onClick={() => setShowDisconnectConfirm(false)}>Cancel</button>
                 </div>
