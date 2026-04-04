@@ -14,6 +14,7 @@ export default function PipelinePage() {
   const { t, deals, moveDeal, openDealModal, showToast, openQuickMessage } = useApp();
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
+  console.log('deals from context:', deals);
 
   return (
     <div>
