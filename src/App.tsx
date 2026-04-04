@@ -1,27 +1,52 @@
-import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
-import { Toaster as Sonner } from "@/components/ui/sonner";
-import { Toaster } from "@/components/ui/toaster";
-import { TooltipProvider } from "@/components/ui/tooltip";
-import Index from "./pages/Index.tsx";
-import NotFound from "./pages/NotFound.tsx";
+import React from 'react';
+import { AppProvider, useApp } from '@/context/AppContext';
+import ErrorScreen from '@/components/ErrorScreen';
+// import your real page components below
+// import Dashboard from '@/pages/Dashboard';
+// import Inbox from '@/pages/Inbox';
+// ...
 
-const queryClient = new QueryClient();
+// ---------------------------------------------------------------------------
+// Inner shell – rendered inside AppProvider so it can read context
+// ---------------------------------------------------------------------------
+function AppShell() {
+  const { isLoading, appError, currentPage } = useApp();
 
-const App = () => (
-  <QueryClientProvider client={queryClient}>
-    <TooltipProvider>
-      <Toaster />
-      <Sonner />
-      <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
-      </BrowserRouter>
-    </TooltipProvider>
-  </QueryClientProvider>
-);
+  // 1. Loading spinner while fetching pipeline + inbox
+  if (isLoading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center bg-gray-50 dark:bg-gray-900">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 border-4 border-blue-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-sm text-gray-500 dark:text-gray-400">Loading your workspace…</p>
+        </div>
+      </div>
+    );
+  }
 
-export default App;
+  // 2. Error screen when hydration failed or no token
+  if (appError) {
+    return <ErrorScreen />;
+  }
+
+  // 3. Normal app routing
+  return (
+    <div>
+      {/* Replace with your actual router / page switcher */}
+      {currentPage === 'dashboard' && <div>Dashboard page</div>}
+      {currentPage === 'inbox'     && <div>Inbox page</div>}
+      {/* … */}
+    </div>
+  );
+}
+
+// ---------------------------------------------------------------------------
+// Root – wrap everything in the provider
+// ---------------------------------------------------------------------------
+export default function App() {
+  return (
+    <AppProvider>
+      <AppShell />
+    </AppProvider>
+  );
+}
