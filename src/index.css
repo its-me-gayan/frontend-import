@@ -1,0 +1,154 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@import url('https://fonts.googleapis.com/css2?family=Sora:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;0,600;1,400&display=swap');
+
+@layer base {
+  :root {
+    --background: 210 20% 98%;
+    --foreground: 222 47% 11%;
+    --card: 0 0% 100%;
+    --card-foreground: 222 47% 11%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 222 47% 11%;
+    --primary: 207 85% 40%;
+    --primary-foreground: 210 40% 98%;
+    --secondary: 210 40% 96%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 210 40% 96%;
+    --muted-foreground: 215 16% 47%;
+    --accent: 210 40% 96%;
+    --accent-foreground: 222 47% 11%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 214 32% 91%;
+    --input: 214 32% 91%;
+    --ring: 207 85% 40%;
+    --radius: 0.75rem;
+    --sidebar-background: 220 50% 15%;
+    --sidebar-foreground: 0 0% 100%;
+
+    --brand-50: 207 100% 97%;
+    --brand-100: 210 100% 93%;
+    --brand-200: 210 100% 84%;
+    --brand-300: 207 100% 71%;
+    --brand-400: 205 95% 52%;
+    --brand-500: 207 85% 40%;
+    --brand-600: 210 90% 33%;
+    --brand-700: 212 88% 25%;
+    --brand-800: 214 86% 20%;
+    --brand-900: 215 83% 16%;
+
+    --whatsapp: 142 70% 49%;
+    --whatsapp-light: 142 76% 86%;
+    --emerald-500: 160 84% 39%;
+    --gold: 37 91% 55%;
+    --maroon: 0 100% 27%;
+
+    --bg-primary: 210 20% 98%;
+    --bg-secondary: 0 0% 100%;
+    --text-primary: 222 47% 11%;
+    --text-secondary: 215 25% 35%;
+    --text-muted: 215 16% 60%;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.06), 0 1px 2px rgba(0,0,0,.04);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.08);
+    --shadow-lg: 0 10px 40px rgba(0,0,0,.12);
+  }
+
+  .dark {
+    --background: 220 20% 7%;
+    --foreground: 210 40% 98%;
+    --card: 220 20% 9%;
+    --card-foreground: 210 40% 98%;
+    --popover: 220 20% 9%;
+    --popover-foreground: 210 40% 98%;
+    --primary: 207 85% 50%;
+    --primary-foreground: 222 47% 11%;
+    --secondary: 217 33% 18%;
+    --secondary-foreground: 210 40% 98%;
+    --muted: 217 33% 18%;
+    --muted-foreground: 215 20% 65%;
+    --accent: 217 33% 18%;
+    --accent-foreground: 210 40% 98%;
+    --destructive: 0 63% 31%;
+    --destructive-foreground: 210 40% 98%;
+    --border: 217 33% 18%;
+    --input: 217 33% 18%;
+    --ring: 212 27% 84%;
+    --sidebar-background: 220 50% 6%;
+
+    --bg-primary: 220 20% 7%;
+    --bg-secondary: 220 20% 9%;
+    --text-primary: 210 40% 96%;
+    --text-secondary: 215 20% 55%;
+    --text-muted: 215 15% 35%;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,.3);
+    --shadow-md: 0 4px 16px rgba(0,0,0,.4);
+    --shadow-lg: 0 10px 40px rgba(0,0,0,.5);
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-family: 'DM Sans', sans-serif;
+  }
+  h1, h2, h3, h4 {
+    font-family: 'Sora', sans-serif;
+  }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; height: 6px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: hsl(var(--border)); border-radius: 99px; }
+::-webkit-scrollbar-thumb:hover { background: hsl(var(--muted-foreground)); }
+
+/* WhatsApp chat background */
+.chat-bg-light { background: #e5ddd5; }
+.dark .chat-bg-light { background: hsl(220 30% 10%); }
+
+.msg-outgoing { background: #dcf8c6; }
+.dark .msg-outgoing { background: hsl(150 40% 18%); }
+
+/* Kanban drag styles */
+.deal-card-dragging { opacity: 0.4; }
+.kanban-drop-active { background: hsl(var(--primary) / 0.05); }
+
+/* Toast animation */
+@keyframes slideInRight {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; pointer-events: none; }
+}
+.toast-animate {
+  animation: slideInRight 0.3s ease, fadeOut 0.3s ease 3s forwards;
+}
+
+/* Pulse animation for status dots */
+@keyframes pulse-dot {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.animate-pulse-dot {
+  animation: pulse-dot 1.5s infinite;
+}
+
+/* Print styles */
+@media print {
+  body > * { display: none !important; }
+  #invoice-print-area { display: block !important; }
+}
+
+/* KPI card top border variants */
+.kpi-border-blue::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, hsl(var(--brand-500)), hsl(var(--brand-400))); border-radius: var(--radius) var(--radius) 0 0; }
+.kpi-border-green::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #059669, #34d399); border-radius: var(--radius) var(--radius) 0 0; }
+.kpi-border-gold::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #d97706, #fbbf24); border-radius: var(--radius) var(--radius) 0 0; }
+.kpi-border-red::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 3px; background: linear-gradient(90deg, #dc2626, #f87171); border-radius: var(--radius) var(--radius) 0 0; }
