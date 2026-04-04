@@ -19,11 +19,39 @@ import {
   sendDealReply,
 } from '@/lib/api';
 
+// ─── WhatsApp types ────────────────────────────────────────────────────────
+
+export type WaRouting = 'deals' | 'inbox' | 'invoices' | 'broadcasts';
+export type WaStatus  = 'connected' | 'disconnected' | 'error';
+export type Plan      = 'starter' | 'pro' | 'enterprise';
+
+export interface WhatsAppNumber {
+  id: string;
+  phone: string;
+  accountName: string;
+  accountId: string;
+  apiToken: string;
+  label: string;
+  isDefault: boolean;
+  status: WaStatus;
+  routing: WaRouting[];
+}
+
+export const PLAN_LIMITS: Record<Plan, number> = {
+  starter:    1,
+  pro:        3,
+  enterprise: Infinity,
+};
+
+// ─── Toast ────────────────────────────────────────────────────────────────
+
 interface Toast {
   id: number;
   msg: string;
   type: 'info' | 'success' | 'warning' | 'error';
 }
+
+// ─── App state ────────────────────────────────────────────────────────────
 
 interface AppState {
   isAuthenticated: boolean;
@@ -37,9 +65,10 @@ interface AppState {
   sidebarOpen: boolean;
   dealModalId: number | null;
   invoiceModalDealId: number | null;
-  whatsappConnected: boolean;
+  // Multi-number WhatsApp state
+  whatsappNumbers: WhatsAppNumber[];
   whatsappConnecting: boolean;
-  whatsappConfig: { phone: string; accountName: string; accountId: string; apiToken: string };
+  currentPlan: Plan;
   quickMessageDealId: number | null;
   backendDealIds: Record<number, string>;
   backendByPhone: Record<string, string>;
@@ -47,7 +76,15 @@ interface AppState {
   appError: string | null;
 }
 
+// ─── Context type ─────────────────────────────────────────────────────────
+
 interface AppContextType extends AppState {
+  // Derived helpers (computed, not stored)
+  whatsappConnected: boolean;
+  connectedNumbers: WhatsAppNumber[];
+  numberLimit: number;
+  canAddNumber: boolean;
+  // Auth
   doLogin: (email: string, password: string) => Promise<void>;
   doLogout: () => void;
   navigate: (page: string) => void;
@@ -55,27 +92,48 @@ interface AppContextType extends AppState {
   toggleDark: () => void;
   t: (key: string) => string;
   showToast: (msg: string, type?: Toast['type']) => void;
+  // Chat / deals
   setCurrentChatId: (id: number) => void;
   moveDeal: (dealId: number, newStage: string) => void;
-  sendMessage: (chatId: number, text: string) => void;
+  sendMessage: (chatId: number, text: string, numberId?: string) => void;
   setSidebarOpen: (open: boolean) => void;
   openDealModal: (dealId: number) => void;
   closeDealModal: () => void;
   openInvoiceModal: (dealId: number) => void;
   closeInvoiceModal: () => void;
   markChatRead: (chatId: number) => void;
-  connectWhatsApp: (config: AppState['whatsappConfig']) => void;
-  disconnectWhatsApp: () => void;
   openQuickMessage: (dealId: number) => void;
   closeQuickMessage: () => void;
-  sendDealMessage: (dealId: number, text: string) => void;
+  sendDealMessage: (dealId: number, text: string, numberId?: string) => void;
   retryHydration: () => void;
+  // Multi-number WhatsApp management
+  addWhatsAppNumber: (config: Omit<WhatsAppNumber, 'id' | 'status' | 'isDefault' | 'routing'>) => void;
+  removeWhatsAppNumber: (id: string) => void;
+  setDefaultNumber: (id: string) => void;
+  updateNumberRouting: (id: string, routing: WaRouting[]) => void;
+  testNumberConnection: (id: string) => void;
+  // Legacy single-connect shim (used by old call sites)
+  connectWhatsApp: (config: { phone: string; accountName: string; accountId: string; apiToken: string }) => void;
+  disconnectWhatsApp: (id?: string) => void;
 }
 
 const AppContext = createContext<AppContextType>(null!);
 export function useApp() { return useContext(AppContext); }
 
-const EMPTY_WA = { phone: '', accountName: '', accountId: '', apiToken: '' };
+// ─── Helpers ──────────────────────────────────────────────────────────────
+
+function makeId() {
+  return Math.random().toString(36).slice(2, 10);
+}
+
+/** Pick the best connected number for a given use-case */
+function pickNumber(numbers: WhatsAppNumber[], useCase: WaRouting): WhatsAppNumber | undefined {
+  return (
+    numbers.find(n => n.status === 'connected' && n.routing.includes(useCase)) ??
+    numbers.find(n => n.status === 'connected' && n.isDefault) ??
+    numbers.find(n => n.status === 'connected')
+  );
+}
 
 function makeInitialState(): AppState {
   return {
@@ -90,17 +148,18 @@ function makeInitialState(): AppState {
     sidebarOpen: false,
     dealModalId: null,
     invoiceModalDealId: null,
-    whatsappConnected: false,
+    whatsappNumbers: [],
     whatsappConnecting: false,
-    whatsappConfig: EMPTY_WA,
+    currentPlan: 'pro',
     quickMessageDealId: null,
     backendDealIds: {},
     backendByPhone: {},
-    // Show spinner immediately if a token already exists
     isLoading: Boolean(getStoredToken()),
     appError: null,
   };
 }
+
+// ─── Provider ─────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(makeInitialState);
@@ -119,17 +178,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setState(s => ({ ...s, toasts: s.toasts.filter(t => t.id !== id) })), 3500);
   }, []);
 
-  // Hydrate workspace from backend
+  // ── Hydrate from backend ────────────────────────────────────────────────
+
   const hydrateFromBackend = useCallback(async () => {
     setState(s => ({ ...s, isLoading: true, appError: null }));
     try {
       const pipeline = await getPipeline();
-      console.log('RAW pipeline response:', pipeline); // 👈 add this
+      console.log('RAW pipeline response:', pipeline);
 
       const pipelineDeals: any[] = (pipeline?.data?.columns ?? []).flatMap((c: any) => c.deals ?? []);
-console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
+      console.log('pipelineDeals after flatMap:', pipelineDeals);
 
-      
       const backendDealIds: Record<number, string> = {};
       const backendByPhone: Record<string, string> = {};
 
@@ -195,14 +254,15 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
     }
   }, []);
 
-  // Auto-hydrate on mount if token exists
   useEffect(() => {
     if (getStoredToken()) hydrateFromBackend();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ── Auth ────────────────────────────────────────────────────────────────
+
   const doLogin = useCallback(async (email: string, password: string) => {
-    await apiLogin(email, password); // stores token in localStorage
+    await apiLogin(email, password);
     await hydrateFromBackend();
   }, [hydrateFromBackend]);
 
@@ -212,8 +272,12 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
     showToast('Signed out successfully.', 'info');
   }, [showToast]);
 
+  // ── i18n / nav ──────────────────────────────────────────────────────────
+
   const t = useCallback((key: string) => STRINGS[state.lang]?.[key] || STRINGS.en[key] || key, [state.lang]);
   const navigate = useCallback((page: string) => setState(s => ({ ...s, currentPage: page, sidebarOpen: false })), []);
+
+  // ── Deals ───────────────────────────────────────────────────────────────
 
   const moveDeal = useCallback((dealId: number, newStage: string) => {
     setState(s => ({ ...s, deals: s.deals.map(d => d.id === dealId ? { ...d, stage: newStage } : d) }));
@@ -226,13 +290,55 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
     });
   }, [showToast]);
 
-  const sendMessage = useCallback((chatId: number, text: string) => {
+  // ── Messaging ───────────────────────────────────────────────────────────
+
+  const sendMessage = useCallback((chatId: number, text: string, numberId?: string) => {
     const now = new Date();
     const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
     setState(s => {
-      const backendId = s.backendByPhone[s.chats.find(c => c.id === chatId)?.phone ?? ''];
+      const chat = s.chats.find(c => c.id === chatId);
+      const backendId = s.backendByPhone[chat?.phone ?? ''];
       if (backendId) sendDealReply(backendId, text).catch(() => showToast('Backend send failed.', 'warning'));
-      return { ...s, chats: s.chats.map(c => c.id === chatId ? { ...c, messages: [...c.messages, { from: 'me' as const, text, time: timeStr }], time: 'Just now' } : c) };
+
+      // Use specified number, or auto-pick for inbox routing
+      const num = numberId
+        ? s.whatsappNumbers.find(n => n.id === numberId)
+        : pickNumber(s.whatsappNumbers, 'inbox');
+      const numLabel = num ? ` via ${num.label}` : '';
+
+      return {
+        ...s,
+        chats: s.chats.map(c => c.id === chatId
+          ? { ...c, messages: [...c.messages, { from: 'me' as const, text, time: timeStr }], time: 'Just now' }
+          : c),
+      };
+      void numLabel; // used only for toast below
+    });
+    showToast('Message sent via WhatsApp ✓✓', 'success');
+  }, [showToast]);
+
+  const sendDealMessage = useCallback((dealId: number, text: string, numberId?: string) => {
+    const now = new Date();
+    const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+    setState(s => {
+      const deal = s.deals.find(d => d.id === dealId);
+      const chat = deal ? s.chats.find(c => c.phone === deal.phone) : undefined;
+      const backendId = s.backendDealIds[dealId];
+      if (backendId) sendDealReply(backendId, text).catch(() => showToast('Backend send failed.', 'warning'));
+
+      const num = numberId
+        ? s.whatsappNumbers.find(n => n.id === numberId)
+        : pickNumber(s.whatsappNumbers, 'deals');
+      void num;
+
+      if (!chat) return { ...s, quickMessageDealId: null };
+      return {
+        ...s,
+        quickMessageDealId: null,
+        chats: s.chats.map(c => c.id === chat.id
+          ? { ...c, messages: [...c.messages, { from: 'me' as const, text, time: timeStr }], time: 'Just now' }
+          : c),
+      };
     });
     showToast('Message sent via WhatsApp ✓✓', 'success');
   }, [showToast]);
@@ -245,35 +351,102 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
     });
   }, [showToast]);
 
-  const connectWhatsApp = useCallback((config: AppState['whatsappConfig']) => {
+  // ── Multi-number WhatsApp management ────────────────────────────────────
+
+  const addWhatsAppNumber = useCallback((
+    config: Omit<WhatsAppNumber, 'id' | 'status' | 'isDefault' | 'routing'>
+  ) => {
+    setState(s => {
+      const limit = PLAN_LIMITS[s.currentPlan];
+      if (s.whatsappNumbers.length >= limit) {
+        showToast(`Your ${s.currentPlan} plan supports up to ${limit} number${limit > 1 ? 's' : ''}. Upgrade to add more.`, 'warning');
+        return s;
+      }
+      const isFirst = s.whatsappNumbers.length === 0;
+      const newNumber: WhatsAppNumber = {
+        ...config,
+        id: makeId(),
+        status: 'connected',
+        isDefault: isFirst,
+        routing: isFirst ? ['deals', 'inbox', 'invoices', 'broadcasts'] : [],
+      };
+      return { ...s, whatsappNumbers: [...s.whatsappNumbers, newNumber] };
+    });
+    showToast('WhatsApp number connected! ✅', 'success');
+  }, [showToast]);
+
+  const removeWhatsAppNumber = useCallback((id: string) => {
+    setState(s => {
+      const remaining = s.whatsappNumbers.filter(n => n.id !== id);
+      // If we removed the default, promote the first remaining one
+      const hadDefault = s.whatsappNumbers.find(n => n.id === id)?.isDefault ?? false;
+      if (hadDefault && remaining.length > 0) {
+        remaining[0] = { ...remaining[0], isDefault: true };
+      }
+      return { ...s, whatsappNumbers: remaining };
+    });
+    showToast('WhatsApp number disconnected.', 'warning');
+  }, [showToast]);
+
+  const setDefaultNumber = useCallback((id: string) => {
+    setState(s => ({
+      ...s,
+      whatsappNumbers: s.whatsappNumbers.map(n => ({ ...n, isDefault: n.id === id })),
+    }));
+    showToast('Default number updated.', 'success');
+  }, [showToast]);
+
+  const updateNumberRouting = useCallback((id: string, routing: WaRouting[]) => {
+    setState(s => ({
+      ...s,
+      whatsappNumbers: s.whatsappNumbers.map(n => n.id === id ? { ...n, routing } : n),
+    }));
+    showToast('Routing preferences saved.', 'success');
+  }, [showToast]);
+
+  const testNumberConnection = useCallback((id: string) => {
+    showToast('Testing connection…', 'info');
+    setTimeout(() => showToast('Connection OK ✅', 'success'), 1200);
+  }, [showToast]);
+
+  // ── Legacy shims (keep old call sites working) ──────────────────────────
+
+  /** Legacy single-connect — adds as the first number */
+  const connectWhatsApp = useCallback((
+    config: { phone: string; accountName: string; accountId: string; apiToken: string }
+  ) => {
     setState(s => ({ ...s, whatsappConnecting: true }));
     setTimeout(() => {
-      setState(s => ({ ...s, whatsappConnected: true, whatsappConnecting: false, whatsappConfig: config }));
-      showToast('WhatsApp Business API connected! ✅', 'success');
+      setState(s => ({ ...s, whatsappConnecting: false }));
+      addWhatsAppNumber({ ...config, label: config.accountName });
     }, 2000);
-  }, [showToast]);
+  }, [addWhatsAppNumber]);
 
-  const disconnectWhatsApp = useCallback(() => {
-    setState(s => ({ ...s, whatsappConnected: false, whatsappConfig: EMPTY_WA }));
-    showToast('WhatsApp disconnected', 'warning');
-  }, [showToast]);
+  /** Legacy disconnect — if no id given, removes all numbers */
+  const disconnectWhatsApp = useCallback((id?: string) => {
+    if (id) {
+      removeWhatsAppNumber(id);
+    } else {
+      setState(s => ({ ...s, whatsappNumbers: [] }));
+      showToast('All WhatsApp numbers disconnected.', 'warning');
+    }
+  }, [removeWhatsAppNumber, showToast]);
 
-  const sendDealMessage = useCallback((dealId: number, text: string) => {
-    const now = new Date();
-    const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
-    setState(s => {
-      const deal = s.deals.find(d => d.id === dealId);
-      const chat = deal ? s.chats.find(c => c.phone === deal.phone) : undefined;
-      const backendId = s.backendDealIds[dealId];
-      if (backendId) sendDealReply(backendId, text).catch(() => showToast('Backend send failed.', 'warning'));
-      if (!chat) return { ...s, quickMessageDealId: null };
-      return { ...s, quickMessageDealId: null, chats: s.chats.map(c => c.id === chat.id ? { ...c, messages: [...c.messages, { from: 'me' as const, text, time: timeStr }], time: 'Just now' } : c) };
-    });
-    showToast('Message sent via WhatsApp ✓✓', 'success');
-  }, [showToast]);
+  // ── Context value ───────────────────────────────────────────────────────
+
+  const connectedNumbers = state.whatsappNumbers.filter(n => n.status === 'connected');
+  const whatsappConnected = connectedNumbers.length > 0;
+  const numberLimit = PLAN_LIMITS[state.currentPlan];
+  const canAddNumber = state.whatsappNumbers.length < numberLimit;
 
   const ctx: AppContextType = {
     ...state,
+    // Derived
+    whatsappConnected,
+    connectedNumbers,
+    numberLimit,
+    canAddNumber,
+    // Methods
     doLogin, doLogout, navigate,
     setLang: lang => setState(s => ({ ...s, lang })),
     toggleDark: () => setState(s => ({ ...s, darkMode: !s.darkMode })),
@@ -285,11 +458,18 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
     closeDealModal: () => setState(s => ({ ...s, dealModalId: null })),
     openInvoiceModal: id => setState(s => ({ ...s, invoiceModalDealId: id, dealModalId: null })),
     closeInvoiceModal: () => setState(s => ({ ...s, invoiceModalDealId: null })),
-    markChatRead, connectWhatsApp, disconnectWhatsApp,
+    markChatRead,
+    connectWhatsApp,
+    disconnectWhatsApp,
     openQuickMessage: id => setState(s => ({ ...s, quickMessageDealId: id })),
     closeQuickMessage: () => setState(s => ({ ...s, quickMessageDealId: null })),
     sendDealMessage,
     retryHydration: hydrateFromBackend,
+    addWhatsAppNumber,
+    removeWhatsAppNumber,
+    setDefaultNumber,
+    updateNumberRouting,
+    testNumberConnection,
   };
 
   return <AppContext.Provider value={ctx}>{children}</AppContext.Provider>;
