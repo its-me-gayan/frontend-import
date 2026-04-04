@@ -1,5 +1,6 @@
 import { useApp } from '@/context/AppContext';
 import type { Lang } from '@/data/i18n';
+import { useState } from 'react';
 
 export default function Navbar() {
   const { 
@@ -8,7 +9,9 @@ export default function Navbar() {
     activeNumberId, setActiveNumberId, doLogout 
   } = useApp();
 
+  const [showNumberDropdown, setShowNumberDropdown] = useState(false);
   const connectedCount = whatsappNumbers.length;
+  const activeNumber = whatsappNumbers.find(n => n.id === activeNumberId);
 
   return (
     <header className="bg-card border-b border-border px-4 h-[60px] flex items-center gap-3 flex-shrink-0 shadow-sm z-40">
@@ -39,28 +42,6 @@ export default function Navbar() {
         />
       </div>
 
-      {/* Multi-number Switcher */}
-      {whatsappConnected && (
-        <div className="hidden lg:flex items-center bg-muted/50 border border-border rounded-lg p-1 mx-4">
-          <button
-            onClick={() => setActiveNumberId('all')}
-            className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${activeNumberId === 'all' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-          >
-            ALL
-          </button>
-          {whatsappNumbers.map(num => (
-            <button
-              key={num.id}
-              onClick={() => setActiveNumberId(num.id)}
-              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all flex items-center gap-1.5 ${activeNumberId === num.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
-            >
-              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-              {num.name.split(' ')[0].toUpperCase()}
-            </button>
-          ))}
-        </div>
-      )}
-
       <div className="flex items-center gap-2 ml-auto">
         {/* Language */}
         <select
@@ -78,37 +59,112 @@ export default function Navbar() {
           {darkMode ? '☀️' : '🌙'}
         </button>
 
-        {/* WhatsApp status — shows number count when multiple are connected */}
-        <button
-          onClick={() => {
-            if (whatsappConnected) {
-              if (connectedCount > 1) {
-                showToast(`${connectedCount} WhatsApp numbers active 📱`, 'success');
-              } else {
-                showToast(`WhatsApp connected: ${whatsappNumbers[0]?.phone ?? ''} 📱`, 'success');
-              }
-            } else {
-              navigate('settings');
-            }
-          }}
-          className={`hidden sm:inline-flex items-center gap-1.5 text-xs font-semibold px-3 py-1.5 rounded-md transition-colors ${
-            whatsappConnected
-              ? 'bg-emerald-500 hover:bg-emerald-600 text-primary-foreground'
-              : 'border border-border text-muted-foreground hover:bg-muted'
-          }`}
-        >
-          {whatsappConnected ? (
-            <>
-              <div className="w-1.5 h-1.5 bg-white rounded-full animate-pulse-dot" />
-              {connectedCount > 1 ? `${connectedCount} numbers` : 'Connected'}
-            </>
-          ) : (
-            <>
-              <span>📱</span>
-              {t('connect_wa')}
-            </>
+        {/* WhatsApp status — PROMINENT DROPDOWN TRIGGER */}
+        <div className="relative">
+          <button
+            onClick={() => setShowNumberDropdown(!showNumberDropdown)}
+            className={`hidden sm:inline-flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all border-2 ${
+              whatsappConnected
+                ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 hover:bg-emerald-500/20'
+                : 'border-muted bg-muted text-muted-foreground hover:bg-muted/80'
+            }`}
+          >
+            <div className={`w-2 h-2 rounded-full ${whatsappConnected ? 'bg-emerald-500 animate-pulse-dot' : 'bg-muted-foreground'}`} />
+            {whatsappConnected ? (
+              <>
+                <span className="hidden md:inline">
+                  {connectedCount > 1 ? `${connectedCount} Numbers` : 'Connected'}
+                </span>
+                <svg width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <polyline points="6 9 12 15 18 9"></polyline>
+                </svg>
+              </>
+            ) : (
+              <>
+                <span>📱</span>
+                {t('connect_wa')}
+              </>
+            )}
+          </button>
+
+          {/* Dropdown Menu */}
+          {showNumberDropdown && whatsappConnected && (
+            <div className="absolute right-0 top-full mt-2 w-72 bg-card border border-border rounded-lg shadow-2xl opacity-100 visible z-50 py-2">
+              {/* Header */}
+              <div className="px-4 py-2 border-b border-border">
+                <div className="text-xs font-bold text-foreground">Active WhatsApp Line</div>
+                <div className="text-[10px] text-muted-foreground mt-0.5">Select which number to use</div>
+              </div>
+
+              {/* View All Option */}
+              <button
+                onClick={() => {
+                  setActiveNumberId('all');
+                  setShowNumberDropdown(false);
+                }}
+                className={`w-full text-left px-4 py-2.5 text-xs font-medium transition-colors flex items-center gap-3 ${
+                  activeNumberId === 'all'
+                    ? 'bg-primary/10 text-primary border-l-2 border-l-primary'
+                    : 'hover:bg-muted text-foreground'
+                }`}
+              >
+                <div className="w-8 h-8 rounded-lg bg-gradient-to-br from-blue-400 to-blue-600 flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0">
+                  ALL
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="font-semibold">View All</div>
+                  <div className="text-[10px] text-muted-foreground">See all numbers at once</div>
+                </div>
+              </button>
+
+              {/* Individual Numbers */}
+              {whatsappNumbers.map((num, idx) => (
+                <button
+                  key={num.id}
+                  onClick={() => {
+                    setActiveNumberId(num.id);
+                    setShowNumberDropdown(false);
+                  }}
+                  className={`w-full text-left px-4 py-2.5 text-xs font-medium transition-colors flex items-center gap-3 border-l-2 ${
+                    activeNumberId === num.id
+                      ? 'bg-primary/10 text-primary border-l-primary'
+                      : 'hover:bg-muted text-foreground border-l-transparent'
+                  }`}
+                >
+                  {/* Color-coded avatar */}
+                  <div
+                    className={`w-8 h-8 rounded-lg flex items-center justify-center text-white text-[10px] font-bold flex-shrink-0 ${
+                      idx === 0 ? 'bg-gradient-to-br from-emerald-400 to-emerald-600' : 'bg-gradient-to-br from-blue-400 to-blue-600'
+                    }`}
+                  >
+                    {num.name.split(' ')[0][0]}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-semibold truncate">{num.name}</div>
+                    <div className="text-[10px] text-muted-foreground truncate">{num.phone}</div>
+                  </div>
+                  {num.status === 'connected' && (
+                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full flex-shrink-0 animate-pulse-dot" />
+                  )}
+                </button>
+              ))}
+
+              {/* Divider */}
+              <div className="border-t border-border my-1" />
+
+              {/* Manage Numbers Link */}
+              <button
+                onClick={() => {
+                  navigate('settings');
+                  setShowNumberDropdown(false);
+                }}
+                className="w-full text-left px-4 py-2 text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors flex items-center gap-2"
+              >
+                <span>⚙️</span> Manage Numbers
+              </button>
+            </div>
           )}
-        </button>
+        </div>
 
         {/* Notifications */}
         <button

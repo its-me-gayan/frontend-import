@@ -3,7 +3,7 @@ import { getInitials, formatPhoneForApi } from '@/lib/helpers';
 import { useState, useEffect, useRef, useMemo } from 'react';
 
 export default function InboxPage() {
-  const { t, chats, currentChatId, setCurrentChatId, sendMessage, openDealModal, showToast, markChatRead, deals, activeNumberId, whatsappNumbers } = useApp();
+  const { t, chats, currentChatId, setCurrentChatId, sendMessage, openDealModal, showToast, markChatRead, deals, activeNumberId, whatsappNumbers, setActiveNumberId } = useApp();
   const [msgText, setMsgText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const msgsEndRef = useRef<HTMLDivElement>(null);
@@ -58,12 +58,62 @@ export default function InboxPage() {
     <div>
       <div className="mb-4">
         <h2 className="text-xl font-extrabold font-display text-foreground">
-          {t('inbox_title')} {activeNumberId !== 'all' && <span className="text-sm font-normal text-muted-foreground ml-2">({activeNumber?.name})</span>}
+          {t('inbox_title')}
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">{t('inbox_subtitle')}</p>
+        <p className="text-sm text-muted-foreground mt-1">
+          {activeNumberId === 'all' 
+            ? t('inbox_subtitle')
+            : `${t('inbox_subtitle')} • ${activeNumber?.name}`}
+        </p>
       </div>
 
-      <div className="flex bg-card border border-border rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 170px)' }}>
+      {/* Number Filter — PROMINENT DISPLAY */}
+      {whatsappNumbers.length > 0 && (
+        <div className="mb-4 flex flex-wrap gap-2">
+          <button
+            onClick={() => setActiveNumberId('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border-2 flex items-center gap-2 ${
+              activeNumberId === 'all'
+                ? 'border-primary bg-primary/10 text-primary shadow-md'
+                : 'border-border bg-background text-foreground hover:border-primary/50'
+            }`}
+          >
+            <span className="text-base">💬</span>
+            All Chats ({chats.length})
+          </button>
+
+          {whatsappNumbers.map((num, idx) => {
+            const numChats = chats.filter(c => c.waNumber === num.phone);
+            const unreadCount = numChats.reduce((sum, c) => sum + c.unread, 0);
+            const isActive = activeNumberId === num.id;
+            return (
+              <button
+                key={num.id}
+                onClick={() => setActiveNumberId(num.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border-2 flex items-center gap-2 relative ${
+                  isActive
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 shadow-md'
+                    : 'border-border bg-background text-foreground hover:border-emerald-500/50'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse-dot' : 'bg-muted-foreground'}`}></div>
+                <div className="flex flex-col items-start">
+                  <span className="leading-tight">{num.name}</span>
+                  <span className="text-[10px] font-normal text-muted-foreground">{num.phone}</span>
+                </div>
+                <span className="ml-1 text-xs font-bold bg-background/50 px-2 py-0.5 rounded-full">{numChats.length}</span>
+                {unreadCount > 0 && (
+                  <span className="absolute -top-2 -right-2 w-5 h-5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
+                    {unreadCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
+        </div>
+      )}
+
+      <div className="flex bg-card border border-border rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 240px)' }}>
         {/* Chat List */}
         <div className="w-[300px] border-r border-border flex-shrink-0 flex flex-col overflow-hidden">
           <div className="p-3 border-b border-border">
@@ -71,35 +121,41 @@ export default function InboxPage() {
               placeholder={t('search_chats')} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
           </div>
           <div className="flex-1 overflow-y-auto">
-            {filteredChats.map(c => (
-              <button key={c.id}
-                onClick={() => handleSelectChat(c.id)}
-                className={`flex items-center gap-3 w-full px-4 py-3 border-b border-border text-left transition-colors hover:bg-background
-                  ${c.id === currentChatId ? 'bg-primary/5 border-l-[3px] border-l-primary' : ''}`}>
-                <div className="w-10 h-10 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm flex-shrink-0"
-                  style={{ background: c.color }}>{getInitials(c.name)}</div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center justify-between">
-                    <div className="text-[13px] font-semibold text-foreground truncate">{c.name}</div>
-                    <div className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">{c.time}</div>
+            {filteredChats.length > 0 ? (
+              filteredChats.map(c => (
+                <button key={c.id}
+                  onClick={() => handleSelectChat(c.id)}
+                  className={`flex items-center gap-3 w-full px-4 py-3 border-b border-border text-left transition-colors hover:bg-background
+                    ${c.id === currentChatId ? 'bg-primary/5 border-l-[3px] border-l-primary' : ''}`}>
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm flex-shrink-0"
+                    style={{ background: c.color }}>{getInitials(c.name)}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center justify-between">
+                      <div className="text-[13px] font-semibold text-foreground truncate">{c.name}</div>
+                      <div className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">{c.time}</div>
+                    </div>
+                    <div className="text-xs text-muted-foreground truncate mt-0.5">{c.messages[c.messages.length - 1]?.text}</div>
+                    {activeNumberId === 'all' && c.waNumber && (
+                      <div className="mt-1 flex items-center gap-1">
+                        <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
+                        <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tight">
+                          {whatsappNumbers.find(n => n.phone === c.waNumber)?.name || 'WhatsApp'}
+                        </span>
+                      </div>
+                    )}
                   </div>
-                  <div className="text-xs text-muted-foreground truncate mt-0.5">{c.messages[c.messages.length - 1]?.text}</div>
-                  {activeNumberId === 'all' && c.waNumber && (
-                    <div className="mt-1 flex items-center gap-1">
-                      <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
-                      <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tight">
-                        {whatsappNumbers.find(n => n.phone === c.waNumber)?.name || 'WhatsApp'}
-                      </span>
+                  {c.unread > 0 && (
+                    <div className="w-[18px] h-[18px] bg-emerald-500 rounded-full text-[10px] font-bold text-primary-foreground flex items-center justify-center ml-1 flex-shrink-0">
+                      {c.unread}
                     </div>
                   )}
-                </div>
-                {c.unread > 0 && (
-                  <div className="w-[18px] h-[18px] bg-emerald-500 rounded-full text-[10px] font-bold text-primary-foreground flex items-center justify-center ml-1 flex-shrink-0">
-                    {c.unread}
-                  </div>
-                )}
-              </button>
-            ))}
+                </button>
+              ))
+            ) : (
+              <div className="flex-1 flex items-center justify-center text-muted-foreground text-sm">
+                No chats found
+              </div>
+            )}
           </div>
         </div>
 

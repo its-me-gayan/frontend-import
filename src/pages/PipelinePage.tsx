@@ -30,13 +30,57 @@ export default function PipelinePage() {
       <div className="flex items-center justify-between mb-5">
         <div>
           <h2 className="text-xl font-extrabold font-display text-foreground">
-            {t('pipeline_title')} {activeNumberId !== 'all' && <span className="text-sm font-normal text-muted-foreground ml-2">({activeNumber?.name})</span>}
+            {t('pipeline_title')}
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">{t('pipeline_subtitle')}</p>
+          <p className="text-sm text-muted-foreground mt-1">
+            {activeNumberId === 'all' 
+              ? t('pipeline_subtitle')
+              : `${t('pipeline_subtitle')} • ${activeNumber?.name}`}
+          </p>
         </div>
         <button className="bg-primary text-primary-foreground text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
           onClick={() => showToast('Add Deal form coming soon! 📋', 'info')}>{t('add_deal')}</button>
       </div>
+
+      {/* Number Filter — PROMINENT DISPLAY */}
+      {whatsappNumbers.length > 0 && (
+        <div className="mb-5 flex flex-wrap gap-2">
+          <button
+            onClick={() => useApp().setActiveNumberId('all')}
+            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border-2 flex items-center gap-2 ${
+              activeNumberId === 'all'
+                ? 'border-primary bg-primary/10 text-primary shadow-md'
+                : 'border-border bg-background text-foreground hover:border-primary/50'
+            }`}
+          >
+            <span className="text-base">📊</span>
+            All Numbers ({deals.length})
+          </button>
+
+          {whatsappNumbers.map((num, idx) => {
+            const numDeals = deals.filter(d => d.waNumber === num.phone);
+            const isActive = activeNumberId === num.id;
+            return (
+              <button
+                key={num.id}
+                onClick={() => useApp().setActiveNumberId(num.id)}
+                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border-2 flex items-center gap-2 ${
+                  isActive
+                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 shadow-md'
+                    : 'border-border bg-background text-foreground hover:border-emerald-500/50'
+                }`}
+              >
+                <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse-dot' : 'bg-muted-foreground'}`}></div>
+                <div className="flex flex-col items-start">
+                  <span className="leading-tight">{num.name}</span>
+                  <span className="text-[10px] font-normal text-muted-foreground">{num.phone}</span>
+                </div>
+                <span className="ml-1 text-xs font-bold bg-background/50 px-2 py-0.5 rounded-full">{numDeals.length}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
 
       {/* Stage totals */}
       <div className="flex gap-2.5 mb-4 overflow-x-auto pb-1">
@@ -103,14 +147,6 @@ export default function PipelinePage() {
                         <span className="text-[11px] text-muted-foreground">📅 {deal.dueDate}</span>
                       </div>
                     </div>
-                    {activeNumberId === 'all' && deal.waNumber && (
-                      <div className="mt-2 pt-2 border-t border-border flex items-center gap-1">
-                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
-                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">
-                          {whatsappNumbers.find(n => n.phone === deal.waNumber)?.name || 'WhatsApp'}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 ))}
               </div>
