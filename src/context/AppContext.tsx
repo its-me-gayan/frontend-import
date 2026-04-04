@@ -40,10 +40,6 @@ interface AppState {
   whatsappConnected: boolean;
   whatsappConnecting: boolean;
   whatsappConfig: { phone: string; accountName: string; accountId: string; apiToken: string };
-  whatsappAccounts: { id: string; phone: string; accountName: string; isDefault?: boolean }[];
-  activeWhatsappId: string | null;
-  notifications: { id: number; title: string; body: string; time: string; read: boolean }[];
-  showNotifications: boolean;
   quickMessageDealId: number | null;
   backendDealIds: Record<number, string>;
   backendByPhone: Record<string, string>;
@@ -69,10 +65,7 @@ interface AppContextType extends AppState {
   closeInvoiceModal: () => void;
   markChatRead: (chatId: number) => void;
   connectWhatsApp: (config: AppState['whatsappConfig']) => void;
-  disconnectWhatsApp: (id?: string) => void;
-  setActiveWhatsappId: (id: string) => void;
-  toggleNotifications: () => void;
-  markNotificationsRead: () => void;
+  disconnectWhatsApp: () => void;
   openQuickMessage: (dealId: number) => void;
   closeQuickMessage: () => void;
   sendDealMessage: (dealId: number, text: string) => void;
@@ -100,17 +93,6 @@ function makeInitialState(): AppState {
     whatsappConnected: false,
     whatsappConnecting: false,
     whatsappConfig: EMPTY_WA,
-    whatsappAccounts: [
-      { id: 'wa1', phone: '+94 77 123 4567', accountName: 'Sales Line', isDefault: true },
-      { id: 'wa2', phone: '+94 11 456 7890', accountName: 'Support Line' }
-    ],
-    activeWhatsappId: 'wa1',
-    notifications: [
-      { id: 1, title: 'New Message', body: 'Gayan Perera: Can you send the invoice?', time: '2m ago', read: false },
-      { id: 2, title: 'Deal Won', body: 'Kumari Silva deal has been marked as won!', time: '1h ago', read: false },
-      { id: 3, title: 'System', body: 'WhatsApp Support Line connected successfully.', time: '3h ago', read: true },
-    ],
-    showNotifications: false,
     quickMessageDealId: null,
     backendDealIds: {},
     backendByPhone: {},
@@ -266,32 +248,13 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
   const connectWhatsApp = useCallback((config: AppState['whatsappConfig']) => {
     setState(s => ({ ...s, whatsappConnecting: true }));
     setTimeout(() => {
-      const newId = `wa-${Date.now()}`;
-      setState(s => ({
-        ...s,
-        whatsappConnected: true,
-        whatsappConnecting: false,
-        whatsappConfig: config,
-        whatsappAccounts: [...s.whatsappAccounts, { id: newId, phone: config.phone, accountName: config.accountName }],
-        activeWhatsappId: newId
-      }));
+      setState(s => ({ ...s, whatsappConnected: true, whatsappConnecting: false, whatsappConfig: config }));
       showToast('WhatsApp Business API connected! ✅', 'success');
     }, 2000);
   }, [showToast]);
 
-  const disconnectWhatsApp = useCallback((id?: string) => {
-    setState(s => {
-      const targetId = id || s.activeWhatsappId;
-      const newAccounts = s.whatsappAccounts.filter(a => a.id !== targetId);
-      const nextActive = newAccounts.length > 0 ? newAccounts[0].id : null;
-      return {
-        ...s,
-        whatsappAccounts: newAccounts,
-        activeWhatsappId: nextActive,
-        whatsappConnected: newAccounts.length > 0,
-        whatsappConfig: nextActive ? s.whatsappConfig : EMPTY_WA
-      };
-    });
+  const disconnectWhatsApp = useCallback(() => {
+    setState(s => ({ ...s, whatsappConnected: false, whatsappConfig: EMPTY_WA }));
     showToast('WhatsApp disconnected', 'warning');
   }, [showToast]);
 
@@ -323,9 +286,6 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
     openInvoiceModal: id => setState(s => ({ ...s, invoiceModalDealId: id, dealModalId: null })),
     closeInvoiceModal: () => setState(s => ({ ...s, invoiceModalDealId: null })),
     markChatRead, connectWhatsApp, disconnectWhatsApp,
-    setActiveWhatsappId: id => setState(s => ({ ...s, activeWhatsappId: id })),
-    toggleNotifications: () => setState(s => ({ ...s, showNotifications: !s.showNotifications })),
-    markNotificationsRead: () => setState(s => ({ ...s, notifications: s.notifications.map(n => ({ ...n, read: true })) })),
     openQuickMessage: id => setState(s => ({ ...s, quickMessageDealId: id })),
     closeQuickMessage: () => setState(s => ({ ...s, quickMessageDealId: null })),
     sendDealMessage,

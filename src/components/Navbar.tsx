@@ -2,8 +2,7 @@ import { useApp } from '@/context/AppContext';
 import type { Lang } from '@/data/i18n';
 
 export default function Navbar() {
-  const { t, lang, setLang, toggleDark, darkMode, showToast, navigate, setSidebarOpen, whatsappConnected, notifications, showNotifications, toggleNotifications, markNotificationsRead } = useApp();
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const { t, lang, setLang, toggleDark, darkMode, showToast, navigate, setSidebarOpen, whatsappConnected } = useApp();
 
   return (
     <header className="bg-card border-b border-border px-4 h-[60px] flex items-center gap-3 flex-shrink-0 shadow-sm z-40">
@@ -47,66 +46,13 @@ export default function Navbar() {
         </button>
 
         {/* Notifications */}
-        <div className="relative">
-          <button
-            className="relative p-1.5 rounded-md border border-border hover:bg-muted transition-colors"
-            onClick={toggleNotifications}
-          >
-            <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
-            </svg>
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-destructive rounded-full text-[9px] text-destructive-foreground flex items-center justify-center font-bold animate-in zoom-in duration-300">
-                {unreadCount}
-              </span>
-            )}
-          </button>
-
-          {showNotifications && (
-            <>
-              <div className="fixed inset-0 z-40" onClick={toggleNotifications} />
-              <div className="absolute right-0 mt-2 w-80 bg-card border border-border rounded-xl shadow-xl z-50 overflow-hidden animate-in fade-in slide-in-from-top-2 duration-200">
-                <div className="p-3 border-b border-border flex items-center justify-between bg-muted/30">
-                  <span className="text-xs font-bold text-foreground">Notifications</span>
-                  {unreadCount > 0 && (
-                    <button
-                      onClick={markNotificationsRead}
-                      className="text-[10px] font-semibold text-primary hover:underline"
-                    >
-                      Mark all as read
-                    </button>
-                  )}
-                </div>
-                <div className="max-h-[350px] overflow-y-auto">
-                  {notifications.length > 0 ? (
-                    notifications.map((n) => (
-                      <div
-                        key={n.id}
-                        className={`p-3 border-b border-border last:border-0 hover:bg-muted/50 transition-colors cursor-pointer ${!n.read ? 'bg-primary/5' : ''}`}
-                      >
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="text-[11px] font-bold text-foreground">{n.title}</span>
-                          <span className="text-[9px] text-muted-foreground">{n.time}</span>
-                        </div>
-                        <p className="text-[11px] text-muted-foreground line-clamp-2">{n.body}</p>
-                      </div>
-                    ))
-                  ) : (
-                    <div className="p-8 text-center">
-                      <div className="text-2xl mb-2">🔔</div>
-                      <div className="text-xs text-muted-foreground">No notifications yet</div>
-                    </div>
-                  )}
-                </div>
-                <div className="p-2 border-t border-border text-center bg-muted/10">
-                  <button className="text-[10px] font-bold text-muted-foreground hover:text-foreground transition-colors">
-                    View all activity
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
+        <button className="relative p-1.5 rounded-md border border-border hover:bg-muted"
+          onClick={() => showToast('3 new WhatsApp messages! 💬', 'success')}>
+          <svg width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+            <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/>
+          </svg>
+          <span className="absolute -top-1 -right-1 w-3.5 h-3.5 bg-destructive rounded-full text-[9px] text-destructive-foreground flex items-center justify-center font-bold">3</span>
+        </button>
 
         {/* User */}
         <button onClick={() => navigate('settings')} className="flex items-center gap-2">

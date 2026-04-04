@@ -19,7 +19,7 @@ const navItems3 = [
 ];
 
 export default function Sidebar() {
-  const { currentPage, navigate, t, deals, chats, sidebarOpen, setSidebarOpen, doLogout } = useApp();
+  const { currentPage, navigate, t, deals, chats, sidebarOpen, setSidebarOpen } = useApp();
   const totalUnread = chats.reduce((s, c) => s + c.unread, 0);
   const pipelineCount = deals.filter(d => !['won', 'lost'].includes(d.stage)).length;
 
@@ -83,13 +83,6 @@ export default function Sidebar() {
           <div className="mt-2.5 text-[11px] text-sidebar-foreground/35">
             +94 77 123 4567 · {t('plan_pro')}
           </div>
-          <button
-            onClick={doLogout}
-            className="mt-4 flex items-center gap-2 w-full px-3 py-2 rounded-lg text-[13px] font-medium text-sidebar-foreground/55 hover:bg-destructive/10 hover:text-destructive transition-all"
-          >
-            <span className="text-base w-5 text-center">🚪</span>
-            <span>Logout</span>
-          </button>
         </div>
       </aside>
     </>
