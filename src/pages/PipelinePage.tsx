@@ -1,6 +1,6 @@
 import { useApp } from '@/context/AppContext';
 import { fmtLKR, getStageColor, getInitials, getProbBadge } from '@/lib/helpers';
-import React, { useState } from 'react';
+import React, { useState, useMemo } from 'react';
 
 const stages = [
   { id: 'new', labelKey: 'col_new', color: '#0f6fbd', bg: 'bg-blue-50 dark:bg-blue-900/20' },
@@ -11,16 +11,27 @@ const stages = [
 ];
 
 export default function PipelinePage() {
-  const { t, deals, moveDeal, openDealModal, showToast, openQuickMessage } = useApp();
+  const { t, deals, moveDeal, openDealModal, showToast, openQuickMessage, activeNumberId, whatsappNumbers } = useApp();
   const [draggedId, setDraggedId] = useState<number | null>(null);
   const [dragOverCol, setDragOverCol] = useState<string | null>(null);
-  console.log('deals from context:', deals);
+
+  const activeNumber = useMemo(() => 
+    whatsappNumbers.find(n => n.id === activeNumberId), 
+    [whatsappNumbers, activeNumberId]
+  );
+
+  const filteredDeals = useMemo(() => {
+    if (activeNumberId === 'all') return deals;
+    return deals.filter(d => d.waNumber === activeNumber?.phone);
+  }, [deals, activeNumberId, activeNumber]);
 
   return (
     <div>
       <div className="flex items-center justify-between mb-5">
         <div>
-          <h2 className="text-xl font-extrabold font-display text-foreground">{t('pipeline_title')}</h2>
+          <h2 className="text-xl font-extrabold font-display text-foreground">
+            {t('pipeline_title')} {activeNumberId !== 'all' && <span className="text-sm font-normal text-muted-foreground ml-2">({activeNumber?.name})</span>}
+          </h2>
           <p className="text-sm text-muted-foreground mt-1">{t('pipeline_subtitle')}</p>
         </div>
         <button className="bg-primary text-primary-foreground text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
@@ -30,7 +41,7 @@ export default function PipelinePage() {
       {/* Stage totals */}
       <div className="flex gap-2.5 mb-4 overflow-x-auto pb-1">
         {stages.map(s => {
-          const sDeals = deals.filter(d => d.stage === s.id);
+          const sDeals = filteredDeals.filter(d => d.stage === s.id);
           const total = sDeals.reduce((a, d) => a + d.value, 0);
           return (
             <div key={s.id} className="bg-card border border-border rounded-lg px-4 py-2.5 min-w-[150px] flex-shrink-0">
@@ -45,7 +56,7 @@ export default function PipelinePage() {
       {/* Kanban */}
       <div className="flex gap-3.5 overflow-x-auto pb-4 min-h-[500px]">
         {stages.map(s => {
-          const colDeals = deals.filter(d => d.stage === s.id);
+          const colDeals = filteredDeals.filter(d => d.stage === s.id);
           return (
             <div key={s.id} className="min-w-[260px] max-w-[260px] bg-background border border-border rounded-lg flex flex-col">
               <div className="px-3.5 py-3 border-b border-border flex items-center justify-between" style={{ borderTop: `3px solid ${s.color}` }}>
@@ -92,6 +103,14 @@ export default function PipelinePage() {
                         <span className="text-[11px] text-muted-foreground">📅 {deal.dueDate}</span>
                       </div>
                     </div>
+                    {activeNumberId === 'all' && deal.waNumber && (
+                      <div className="mt-2 pt-2 border-t border-border flex items-center gap-1">
+                        <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+                        <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-tight">
+                          {whatsappNumbers.find(n => n.phone === deal.waNumber)?.name || 'WhatsApp'}
+                        </span>
+                      </div>
+                    )}
                   </div>
                 ))}
               </div>

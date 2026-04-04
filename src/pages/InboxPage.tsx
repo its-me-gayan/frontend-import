@@ -1,20 +1,31 @@
 import { useApp } from '@/context/AppContext';
 import { getInitials, formatPhoneForApi } from '@/lib/helpers';
-import { useState, useEffect, useRef } from 'react';
-import { DEALS } from '@/data/mockData';
+import { useState, useEffect, useRef, useMemo } from 'react';
 
 export default function InboxPage() {
-  const { t, chats, currentChatId, setCurrentChatId, sendMessage, openDealModal, showToast, markChatRead, deals } = useApp();
+  const { t, chats, currentChatId, setCurrentChatId, sendMessage, openDealModal, showToast, markChatRead, deals, activeNumberId, whatsappNumbers } = useApp();
   const [msgText, setMsgText] = useState('');
   const [searchQuery, setSearchQuery] = useState('');
   const msgsEndRef = useRef<HTMLDivElement>(null);
 
+  const activeNumber = useMemo(() => 
+    whatsappNumbers.find(n => n.id === activeNumberId), 
+    [whatsappNumbers, activeNumberId]
+  );
+
+  const filteredChats = useMemo(() => {
+    let list = chats;
+    if (activeNumberId !== 'all') {
+      list = chats.filter(c => c.waNumber === activeNumber?.phone);
+    }
+    if (searchQuery) {
+      list = list.filter(c => c.name.toLowerCase().includes(searchQuery.toLowerCase()));
+    }
+    return list;
+  }, [chats, activeNumberId, activeNumber, searchQuery]);
+
   const currentChat = chats.find(c => c.id === currentChatId);
   const deal = currentChat ? deals.find(d => d.phone === currentChat.phone) : null;
-
-  const filteredChats = chats.filter(c =>
-    c.name.toLowerCase().includes(searchQuery.toLowerCase())
-  );
 
   useEffect(() => {
     msgsEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -22,7 +33,7 @@ export default function InboxPage() {
 
   const handleSend = () => {
     if (!msgText.trim()) return;
-    sendMessage(currentChatId, msgText);
+    sendMessage(currentChatId!, msgText);
     setMsgText('');
   };
 
@@ -32,7 +43,7 @@ export default function InboxPage() {
     showToast(`📱 Sending via WhatsApp Business API to ${phone}...`, 'info');
     // Simulate API call
     setTimeout(() => {
-      sendMessage(currentChatId, msgText);
+      sendMessage(currentChatId!, msgText);
       setMsgText('');
       showToast(`✅ Message delivered via WhatsApp Business API to ${currentChat.name}`, 'success');
     }, 1000);
@@ -46,7 +57,9 @@ export default function InboxPage() {
   return (
     <div>
       <div className="mb-4">
-        <h2 className="text-xl font-extrabold font-display text-foreground">{t('inbox_title')}</h2>
+        <h2 className="text-xl font-extrabold font-display text-foreground">
+          {t('inbox_title')} {activeNumberId !== 'all' && <span className="text-sm font-normal text-muted-foreground ml-2">({activeNumber?.name})</span>}
+        </h2>
         <p className="text-sm text-muted-foreground mt-1">{t('inbox_subtitle')}</p>
       </div>
 
@@ -66,13 +79,25 @@ export default function InboxPage() {
                 <div className="w-10 h-10 rounded-full flex items-center justify-center text-primary-foreground font-bold text-sm flex-shrink-0"
                   style={{ background: c.color }}>{getInitials(c.name)}</div>
                 <div className="flex-1 min-w-0">
-                  <div className="text-[13px] font-semibold text-foreground">{c.name}</div>
+                  <div className="flex items-center justify-between">
+                    <div className="text-[13px] font-semibold text-foreground truncate">{c.name}</div>
+                    <div className="text-[10px] text-muted-foreground flex-shrink-0 ml-2">{c.time}</div>
+                  </div>
                   <div className="text-xs text-muted-foreground truncate mt-0.5">{c.messages[c.messages.length - 1]?.text}</div>
+                  {activeNumberId === 'all' && c.waNumber && (
+                    <div className="mt-1 flex items-center gap-1">
+                      <div className="w-1 h-1 rounded-full bg-emerald-500"></div>
+                      <span className="text-[9px] font-bold text-muted-foreground/60 uppercase tracking-tight">
+                        {whatsappNumbers.find(n => n.phone === c.waNumber)?.name || 'WhatsApp'}
+                      </span>
+                    </div>
+                  )}
                 </div>
-                <div className="text-right flex-shrink-0">
-                  <div className="text-[11px] text-muted-foreground">{c.time}</div>
-                  {c.unread > 0 && <div className="w-[18px] h-[18px] bg-emerald-500 rounded-full text-[10px] font-bold text-primary-foreground flex items-center justify-center mt-1 ml-auto">{c.unread}</div>}
-                </div>
+                {c.unread > 0 && (
+                  <div className="w-[18px] h-[18px] bg-emerald-500 rounded-full text-[10px] font-bold text-primary-foreground flex items-center justify-center ml-1 flex-shrink-0">
+                    {c.unread}
+                  </div>
+                )}
               </button>
             ))}
           </div>
@@ -88,7 +113,14 @@ export default function InboxPage() {
                   style={{ background: currentChat.color }}>{getInitials(currentChat.name)}</div>
                 <div>
                   <div className="text-sm font-bold text-foreground">{currentChat.name}</div>
-                  <div className="text-[11px] text-emerald-500 font-semibold">● Online</div>
+                  <div className="flex items-center gap-2">
+                    <div className="text-[11px] text-emerald-500 font-semibold">● Online</div>
+                    {currentChat.waNumber && (
+                      <span className="text-[10px] bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 px-1.5 py-0.5 rounded font-bold uppercase">
+                        via {whatsappNumbers.find(n => n.phone === currentChat.waNumber)?.name || 'WhatsApp'}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <div className="ml-auto flex gap-2">
                   {deal && (

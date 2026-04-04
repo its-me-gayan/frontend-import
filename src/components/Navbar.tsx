@@ -2,7 +2,7 @@ import { useApp } from '@/context/AppContext';
 import type { Lang } from '@/data/i18n';
 
 export default function Navbar() {
-  const { t, lang, setLang, toggleDark, darkMode, showToast, navigate, setSidebarOpen, whatsappConnected } = useApp();
+  const { t, lang, setLang, toggleDark, darkMode, showToast, navigate, setSidebarOpen, whatsappConnected, whatsappNumbers, activeNumberId, setActiveNumberId, doLogout } = useApp();
 
   return (
     <header className="bg-card border-b border-border px-4 h-[60px] flex items-center gap-3 flex-shrink-0 shadow-sm z-40">
@@ -21,6 +21,28 @@ export default function Navbar() {
         <input className="w-full bg-background border border-border rounded-lg pl-8 pr-3 py-2 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/10"
           placeholder={t('search_placeholder')} />
       </div>
+
+      {/* Multi-number Switcher */}
+      {whatsappConnected && (
+        <div className="hidden lg:flex items-center bg-muted/50 border border-border rounded-lg p-1 mx-4">
+          <button
+            onClick={() => setActiveNumberId('all')}
+            className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all ${activeNumberId === 'all' ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+          >
+            ALL
+          </button>
+          {whatsappNumbers.map(num => (
+            <button
+              key={num.id}
+              onClick={() => setActiveNumberId(num.id)}
+              className={`px-2.5 py-1 rounded-md text-[10px] font-bold transition-all flex items-center gap-1.5 ${activeNumberId === num.id ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground'}`}
+            >
+              <div className="w-1.5 h-1.5 rounded-full bg-emerald-500"></div>
+              {num.name.split(' ')[0].toUpperCase()}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="flex items-center gap-2 ml-auto">
         {/* Language */}
@@ -55,13 +77,33 @@ export default function Navbar() {
         </button>
 
         {/* User */}
-        <button onClick={() => navigate('settings')} className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-brand-400 flex items-center justify-center text-primary-foreground font-bold text-xs">GP</div>
-          <div className="hidden md:block text-left">
-            <div className="text-xs font-bold text-foreground">Gayan Perera</div>
-            <div className="text-[10px] text-muted-foreground">{t('role_admin')}</div>
+        <div className="relative group">
+          <button className="flex items-center gap-2 hover:bg-muted p-1 rounded-lg transition-colors">
+            <div className="w-8 h-8 rounded-full bg-gradient-to-br from-brand-500 to-brand-400 flex items-center justify-center text-primary-foreground font-bold text-xs">GP</div>
+            <div className="hidden md:block text-left">
+              <div className="text-xs font-bold text-foreground">Gayan Perera</div>
+              <div className="text-[10px] text-muted-foreground">{t('role_admin')}</div>
+            </div>
+          </button>
+          <div className="absolute right-0 top-full mt-1 w-48 bg-card border border-border rounded-lg shadow-xl opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all py-1 z-50">
+            <div className="px-4 py-2 border-b border-border md:hidden">
+              <div className="text-xs font-bold text-foreground">Gayan Perera</div>
+              <div className="text-[10px] text-muted-foreground">{t('role_admin')}</div>
+            </div>
+            <button 
+              onClick={() => navigate('settings')}
+              className="w-full text-left px-4 py-2 text-[11px] font-medium hover:bg-muted flex items-center gap-2"
+            >
+              <span>⚙️</span> {t('nav_settings')}
+            </button>
+            <button 
+              onClick={doLogout}
+              className="w-full text-left px-4 py-2 text-[11px] font-medium text-destructive hover:bg-destructive/10 flex items-center gap-2"
+            >
+              <span>🚪</span> {t('logout') || 'Logout'}
+            </button>
           </div>
-        </button>
+        </div>
       </div>
     </header>
   );

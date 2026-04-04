@@ -38,6 +38,7 @@ export const STRINGS: Record<Lang, Record<string, string>> = {
     type_message: 'Type a message...',
     send_whatsapp_msg: 'Send WhatsApp Message',
     wa_api_send: 'Send via WhatsApp API',
+    logout: 'Logout',
   },
   si: {
     tagline: 'WhatsApp CRM ශ්‍රී ලංකාව සඳහා',
@@ -76,6 +77,7 @@ export const STRINGS: Record<Lang, Record<string, string>> = {
     type_message: 'පණිවිඩයක් ටයිප් කරන්න...',
     send_whatsapp_msg: 'WhatsApp පණිවිඩය යවන්න',
     wa_api_send: 'WhatsApp API හරහා යවන්න',
+    logout: 'පිටවන්න',
   },
   ta: {
     tagline: 'இலங்கைக்கான WhatsApp CRM',
@@ -114,5 +116,6 @@ export const STRINGS: Record<Lang, Record<string, string>> = {
     type_message: 'ஒரு செய்தி தட்டச்சு செய்யுங்கள்...',
     send_whatsapp_msg: 'WhatsApp செய்தி அனுப்பு',
     wa_api_send: 'WhatsApp API வழியாக அனுப்பு',
+    logout: 'வெளியேறு',
   }
 };

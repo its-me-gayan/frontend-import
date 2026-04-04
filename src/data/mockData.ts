@@ -13,6 +13,7 @@ export interface Deal {
   notes: string;
   assignee: string;
   product: string;
+  waNumber?: string;
 }
 
 export interface ChatMessage {
@@ -29,6 +30,7 @@ export interface Chat {
   unread: number;
   time: string;
   messages: ChatMessage[];
+  waNumber?: string;
 }
 
 export interface Invoice {
@@ -50,20 +52,20 @@ export interface Template {
 }
 
 export const DEALS: Deal[] = [
-  { id:1, name:'Kumara Silva', phone:'+94 77 231 4455', company:'Silva Trading Co.', value:485000, stage:'quoted', prob:65, dueDate:'2026-04-15', lastMsg:'ස්තූතිම, ගාස්තු ලැබුණා. සළකා බලන්නම්.', tag:'Retail', city:'Colombo', notes:'Interested in bulk order. Needs 30-day credit terms.', assignee:'Gayan', product:'Web Design Package + SEO' },
-  { id:2, name:'Nimali Fernando', phone:'+94 71 889 0023', company:'Fernando Events', value:320000, stage:'negotiation', prob:80, dueDate:'2026-04-10', lastMsg:'Can we finalize the price today?', tag:'Events', city:'Kandy', notes:'Repeat client. Important — do not lose.', assignee:'Gayan', product:'Event Website + Booking System' },
-  { id:3, name:'Roshan Jayawardena', phone:'+94 76 554 1122', company:'RJ Construction', value:1250000, stage:'new', prob:30, dueDate:'2026-04-25', lastMsg:'Hello, I need a quote for an ERP system.', tag:'Construction', city:'Gampaha', notes:'Large project. Schedule demo call.', assignee:'Chaminda', product:'Custom ERP System' },
-  { id:4, name:'Priya Wijesinghe', phone:'+94 70 123 4567', company:'Priya Beauty', value:95000, stage:'won', prob:100, dueDate:'2026-03-28', lastMsg:'Payment sent! Thanks so much 🙏', tag:'Beauty', city:'Negombo', notes:'Paid in full. Excellent client.', assignee:'Gayan', product:'E-commerce Website' },
-  { id:5, name:'Supun Rathnayake', phone:'+94 78 432 9900', company:'Lanka Auto Parts', value:750000, stage:'quoted', prob:55, dueDate:'2026-04-18', lastMsg:'Let me check with my partner first.', tag:'Automotive', city:'Colombo', notes:'Partner needs to approve budget.', assignee:'Gayan', product:'Inventory Management System' },
-  { id:6, name:'Dilani Perera', phone:'+94 77 991 3344', company:'Dilani Exports', value:220000, stage:'new', prob:25, dueDate:'2026-05-01', lastMsg:'I found your number from Google. Need website.', tag:'Export', city:'Kalutara', notes:'Cold lead. Follow up in 2 days.', assignee:'Chaminda', product:'Company Website' },
-  { id:7, name:'Mahesh Bandara', phone:'+94 71 654 7788', company:'Bandara Hotels', value:980000, stage:'negotiation', prob:70, dueDate:'2026-04-12', lastMsg:'Can you add the booking module too?', tag:'Hospitality', city:'Colombo', notes:'Wants extra features added to proposal.', assignee:'Gayan', product:'Hotel Booking System' },
-  { id:8, name:'Tharushi Gunawardena', phone:'+94 76 234 5566', company:'TG Fashion', value:175000, stage:'lost', prob:0, dueDate:'2026-03-20', lastMsg:'ක්ෂමා කරන්න, වෙනත් ආයතනයකින් කළා.', tag:'Fashion', city:'Colombo', notes:'Lost to competitor. Price was too high.', assignee:'Gayan', product:'Online Store' },
-  { id:9, name:'Asitha Gunathilake', phone:'+94 70 887 6655', company:'Asitha Farms', value:145000, stage:'won', prob:100, dueDate:'2026-04-02', lastMsg:'Great! Let\'s start the project 🚀', tag:'Agriculture', city:'Kurunegala', notes:'Paid 50% upfront.', assignee:'Chaminda', product:'Farm Management App' },
-  { id:10, name:'Kavindi Rajapaksa', phone:'+94 77 776 5544', company:'KR Clinic', value:560000, stage:'quoted', prob:60, dueDate:'2026-04-20', lastMsg:'Doctor wants to see the demo again.', tag:'Healthcare', city:'Galle', notes:'Demo booked for April 8th.', assignee:'Gayan', product:'Clinic Management System' },
+  { id:1, name:'Kumara Silva', phone:'+94 77 231 4455', company:'Silva Trading Co.', value:485000, stage:'quoted', prob:65, dueDate:'2026-04-15', lastMsg:'ස්තූතිම, ගාස්තු ලැබුණා. සළකා බලන්නම්.', tag:'Retail', city:'Colombo', notes:'Interested in bulk order. Needs 30-day credit terms.', assignee:'Gayan', product:'Web Design Package + SEO', waNumber: '+94 77 123 4567' },
+  { id:2, name:'Nimali Fernando', phone:'+94 71 889 0023', company:'Fernando Events', value:320000, stage:'negotiation', prob:80, dueDate:'2026-04-10', lastMsg:'Can we finalize the price today?', tag:'Events', city:'Kandy', notes:'Repeat client. Important — do not lose.', assignee:'Gayan', product:'Event Website + Booking System', waNumber: '+94 11 456 7890' },
+  { id:3, name:'Roshan Jayawardena', phone:'+94 76 554 1122', company:'RJ Construction', value:1250000, stage:'new', prob:30, dueDate:'2026-04-25', lastMsg:'Hello, I need a quote for an ERP system.', tag:'Construction', city:'Gampaha', notes:'Large project. Schedule demo call.', assignee:'Chaminda', product:'Custom ERP System', waNumber: '+94 77 123 4567' },
+  { id:4, name:'Priya Wijesinghe', phone:'+94 70 123 4567', company:'Priya Beauty', value:95000, stage:'won', prob:100, dueDate:'2026-03-28', lastMsg:'Payment sent! Thanks so much 🙏', tag:'Beauty', city:'Negombo', notes:'Paid in full. Excellent client.', assignee:'Gayan', product:'E-commerce Website', waNumber: '+94 11 456 7890' },
+  { id:5, name:'Supun Rathnayake', phone:'+94 78 432 9900', company:'Lanka Auto Parts', value:750000, stage:'quoted', prob:55, dueDate:'2026-04-18', lastMsg:'Let me check with my partner first.', tag:'Automotive', city:'Colombo', notes:'Partner needs to approve budget.', assignee:'Gayan', product:'Inventory Management System', waNumber: '+94 77 123 4567' },
+  { id:6, name:'Dilani Perera', phone:'+94 77 991 3344', company:'Dilani Exports', value:220000, stage:'new', prob:25, dueDate:'2026-05-01', lastMsg:'I found your number from Google. Need website.', tag:'Export', city:'Kalutara', notes:'Cold lead. Follow up in 2 days.', assignee:'Chaminda', product:'Company Website', waNumber: '+94 11 456 7890' },
+  { id:7, name:'Mahesh Bandara', phone:'+94 71 654 7788', company:'Bandara Hotels', value:980000, stage:'negotiation', prob:70, dueDate:'2026-04-12', lastMsg:'Can you add the booking module too?', tag:'Hospitality', city:'Colombo', notes:'Wants extra features added to proposal.', assignee:'Gayan', product:'Hotel Booking System', waNumber: '+94 77 123 4567' },
+  { id:8, name:'Tharushi Gunawardena', phone:'+94 76 234 5566', company:'TG Fashion', value:175000, stage:'lost', prob:0, dueDate:'2026-03-20', lastMsg:'ක්ෂමා කරන්න, වෙනත් ආයතනයකින් කළා.', tag:'Fashion', city:'Colombo', notes:'Lost to competitor. Price was too high.', assignee:'Gayan', product:'Online Store', waNumber: '+94 11 456 7890' },
+  { id:9, name:'Asitha Gunathilake', phone:'+94 70 887 6655', company:'Asitha Farms', value:145000, stage:'won', prob:100, dueDate:'2026-04-02', lastMsg:'Great! Let\'s start the project 🚀', tag:'Agriculture', city:'Kurunegala', notes:'Paid 50% upfront.', assignee:'Chaminda', product:'Farm Management App', waNumber: '+94 77 123 4567' },
+  { id:10, name:'Kavindi Rajapaksa', phone:'+94 77 776 5544', company:'KR Clinic', value:560000, stage:'quoted', prob:60, dueDate:'2026-04-20', lastMsg:'Doctor wants to see the demo again.', tag:'Healthcare', city:'Galle', notes:'Demo booked for April 8th.', assignee:'Gayan', product:'Clinic Management System', waNumber: '+94 11 456 7890' },
 ];
 
 export const CHATS: Chat[] = [
-  { id:1, name:'Kumara Silva', phone:'+94 77 231 4455', color:'#0f6fbd', unread:2, time:'9:42 AM',
+  { id:1, name:'Kumara Silva', phone:'+94 77 231 4455', color:'#0f6fbd', unread:2, time:'9:42 AM', waNumber: '+94 77 123 4567',
     messages:[
       {from:'them', text:'ආයුබෝවන්! ඔබගේ web design package ගැන විස්තර දෙන්නද?', time:'9:30 AM'},
       {from:'me', text:'ආයුබෝවන් Kumara! ඔව්, Basic - Rs.150,000, Pro - Rs.350,000, Premium - Rs.485,000 (+VAT).', time:'9:35 AM'},
@@ -72,27 +74,27 @@ export const CHATS: Chat[] = [
       {from:'them', text:'ස්තූතිම, ගාස්තු ලැබුණා. සළකා බලන්නම්.', time:'9:42 AM'},
     ]
   },
-  { id:2, name:'Nimali Fernando', phone:'+94 71 889 0023', color:'#059669', unread:1, time:'9:15 AM',
+  { id:2, name:'Nimali Fernando', phone:'+94 71 889 0023', color:'#059669', unread:1, time:'9:15 AM', waNumber: '+94 11 456 7890',
     messages:[
       {from:'me', text:'Good morning Nimali! Wanted to follow up on our proposal.', time:'8:45 AM'},
       {from:'them', text:'Yes, I was just going to message you! We love it.', time:'9:00 AM'},
       {from:'them', text:'Can we finalize the price today?', time:'9:15 AM'},
     ]
   },
-  { id:3, name:'Mahesh Bandara', phone:'+94 71 654 7788', color:'#7c3aed', unread:0, time:'Yesterday',
+  { id:3, name:'Mahesh Bandara', phone:'+94 71 654 7788', color:'#7c3aed', unread:0, time:'Yesterday', waNumber: '+94 77 123 4567',
     messages:[
       {from:'them', text:'Hello! I need a hotel booking system for Bandara Hotels.', time:'Yesterday 2:00 PM'},
       {from:'me', text:'Hi Mahesh! Great to hear from you. I can prepare a detailed proposal.', time:'Yesterday 2:05 PM'},
       {from:'them', text:'Can you add the booking module too?', time:'Yesterday 3:30 PM'},
     ]
   },
-  { id:4, name:'Supun Rathnayake', phone:'+94 78 432 9900', color:'#d97706', unread:0, time:'Yesterday',
+  { id:4, name:'Supun Rathnayake', phone:'+94 78 432 9900', color:'#d97706', unread:0, time:'Yesterday', waNumber: '+94 11 456 7890',
     messages:[
       {from:'me', text:'Hi Supun! Did you get a chance to discuss the inventory system with your partner?', time:'Yesterday 10:00 AM'},
       {from:'them', text:'Let me check with my partner first.', time:'Yesterday 11:30 AM'},
     ]
   },
-  { id:5, name:'Kavindi Rajapaksa', phone:'+94 77 776 5544', color:'#dc2626', unread:3, time:'Yesterday',
+  { id:5, name:'Kavindi Rajapaksa', phone:'+94 77 776 5544', color:'#dc2626', unread:3, time:'Yesterday', waNumber: '+94 77 123 4567',
     messages:[
       {from:'them', text:'Hello, calling about the clinic system demo.', time:'Yesterday 4:00 PM'},
       {from:'me', text:'Hi Kavindi! Yes, demo is confirmed for April 8th at 10 AM.', time:'Yesterday 4:15 PM'},
@@ -100,7 +102,7 @@ export const CHATS: Chat[] = [
       {from:'them', text:'Doctor wants to see the demo again.', time:'Yesterday 5:00 PM'},
     ]
   },
-  { id:6, name:'Roshan Jayawardena', phone:'+94 76 554 1122', color:'#0891b2', unread:1, time:'Mon',
+  { id:6, name:'Roshan Jayawardena', phone:'+94 76 554 1122', color:'#0891b2', unread:1, time:'Mon', waNumber: '+94 11 456 7890',
     messages:[
       {from:'them', text:'Hello, I need a quote for an ERP system.', time:'Mon 10:00 AM'},
       {from:'me', text:'Hi Roshan! Great. Could you share more details about your business size and requirements?', time:'Mon 10:30 AM'},

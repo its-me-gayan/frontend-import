@@ -25,6 +25,13 @@ interface Toast {
   type: 'info' | 'success' | 'warning' | 'error';
 }
 
+export interface WhatsAppNumber {
+  id: string;
+  phone: string;
+  name: string;
+  status: 'connected' | 'disconnected';
+}
+
 interface AppState {
   isAuthenticated: boolean;
   currentPage: string;
@@ -40,6 +47,8 @@ interface AppState {
   whatsappConnected: boolean;
   whatsappConnecting: boolean;
   whatsappConfig: { phone: string; accountName: string; accountId: string; apiToken: string };
+  whatsappNumbers: WhatsAppNumber[];
+  activeNumberId: string | 'all';
   quickMessageDealId: number | null;
   backendDealIds: Record<number, string>;
   backendByPhone: Record<string, string>;
@@ -66,6 +75,7 @@ interface AppContextType extends AppState {
   markChatRead: (chatId: number) => void;
   connectWhatsApp: (config: AppState['whatsappConfig']) => void;
   disconnectWhatsApp: () => void;
+  setActiveNumberId: (id: string | 'all') => void;
   openQuickMessage: (dealId: number) => void;
   closeQuickMessage: () => void;
   sendDealMessage: (dealId: number, text: string) => void;
@@ -76,6 +86,11 @@ const AppContext = createContext<AppContextType>(null!);
 export function useApp() { return useContext(AppContext); }
 
 const EMPTY_WA = { phone: '', accountName: '', accountId: '', apiToken: '' };
+
+const MOCK_NUMBERS: WhatsAppNumber[] = [
+  { id: '1', phone: '+94 77 123 4567', name: 'Sales Line', status: 'connected' },
+  { id: '2', phone: '+94 11 456 7890', name: 'Support Line', status: 'connected' },
+];
 
 function makeInitialState(): AppState {
   return {
@@ -93,6 +108,8 @@ function makeInitialState(): AppState {
     whatsappConnected: false,
     whatsappConnecting: false,
     whatsappConfig: EMPTY_WA,
+    whatsappNumbers: MOCK_NUMBERS,
+    activeNumberId: 'all',
     quickMessageDealId: null,
     backendDealIds: {},
     backendByPhone: {},
@@ -124,11 +141,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setState(s => ({ ...s, isLoading: true, appError: null }));
     try {
       const pipeline = await getPipeline();
-      console.log('RAW pipeline response:', pipeline); // 👈 add this
-
       const pipelineDeals: any[] = (pipeline?.data?.columns ?? []).flatMap((c: any) => c.deals ?? []);
-console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
-
       
       const backendDealIds: Record<number, string> = {};
       const backendByPhone: Record<string, string> = {};
@@ -138,6 +151,10 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
         const phone = d?.contact?.whatsAppPhone ?? `+94 70 000 ${String(uiId).padStart(4, '0')}`;
         backendDealIds[uiId] = d.id;
         backendByPhone[phone] = d.id;
+        
+        // Randomly assign to a WhatsApp number for demo purposes
+        const waNumber = MOCK_NUMBERS[idx % MOCK_NUMBERS.length].phone;
+
         return {
           id: uiId,
           name: d?.contact?.fullName ?? d?.title ?? `Lead ${uiId}`,
@@ -153,6 +170,7 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
           notes: d?.notes ?? '',
           assignee: d?.assignedUser?.fullName ?? 'Unassigned',
           product: d?.title ?? 'Service',
+          waNumber, // 👈 Added this
         };
       });
 
@@ -164,6 +182,10 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
         const mappedUiId = deals.find(x => x.phone === phone)?.id ?? idx + 1;
         if (!backendDealIds[mappedUiId]) backendDealIds[mappedUiId] = d.id;
         backendByPhone[phone] = d.id;
+        
+        // Randomly assign to a WhatsApp number for demo purposes
+        const waNumber = MOCK_NUMBERS[idx % MOCK_NUMBERS.length].phone;
+
         return {
           id: mappedUiId,
           name: d?.contact?.fullName ?? d?.title ?? `Chat ${idx + 1}`,
@@ -172,6 +194,7 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
           unread: Number(d?.unreadCount ?? 0),
           time: d?.lastMessageAt ? 'Just now' : '—',
           messages: [{ from: 'them' as const, text: d?.description ?? d?.title ?? 'Conversation started.', time: '—' }],
+          waNumber, // 👈 Added this
         };
       });
 
@@ -180,6 +203,7 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
         currentChatId: chats[0]?.id ?? null,
         backendDealIds, backendByPhone,
         isLoading: false, isAuthenticated: true, appError: null,
+        whatsappConnected: true, // Set to true for demo if we have data
       }));
     } catch (e: any) {
       const is401 = e?.message?.includes('401') || e?.message?.toLowerCase().includes('unauthorized');
@@ -272,6 +296,10 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
     showToast('Message sent via WhatsApp ✓✓', 'success');
   }, [showToast]);
 
+  const setActiveNumberId = useCallback((id: string | 'all') => {
+    setState(s => ({ ...s, activeNumberId: id }));
+  }, []);
+
   const ctx: AppContextType = {
     ...state,
     doLogin, doLogout, navigate,
@@ -286,6 +314,7 @@ console.log('pipelineDeals after flatMap:', pipelineDeals); // 👈 and this
     openInvoiceModal: id => setState(s => ({ ...s, invoiceModalDealId: id, dealModalId: null })),
     closeInvoiceModal: () => setState(s => ({ ...s, invoiceModalDealId: null })),
     markChatRead, connectWhatsApp, disconnectWhatsApp,
+    setActiveNumberId,
     openQuickMessage: id => setState(s => ({ ...s, quickMessageDealId: id })),
     closeQuickMessage: () => setState(s => ({ ...s, quickMessageDealId: null })),
     sendDealMessage,
