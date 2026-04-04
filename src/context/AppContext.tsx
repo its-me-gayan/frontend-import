@@ -19,11 +19,11 @@ import {
   sendDealReply,
 } from '@/lib/api';
 
-interface Toast {
-  id: number;
-  msg: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-}
+// ─── WhatsApp types ────────────────────────────────────────────────────────
+
+export type WaRouting = 'deals' | 'inbox' | 'invoices' | 'broadcasts';
+export type WaStatus  = 'connected' | 'disconnected' | 'error';
+export type Plan      = 'starter' | 'pro' | 'enterprise';
 
 export interface WhatsAppNumber {
   id: string;
@@ -31,6 +31,22 @@ export interface WhatsAppNumber {
   name: string;
   status: 'connected' | 'disconnected';
 }
+
+export const PLAN_LIMITS: Record<Plan, number> = {
+  starter:    1,
+  pro:        3,
+  enterprise: Infinity,
+};
+
+// ─── Toast ────────────────────────────────────────────────────────────────
+
+interface Toast {
+  id: number;
+  msg: string;
+  type: 'info' | 'success' | 'warning' | 'error';
+}
+
+// ─── App state ────────────────────────────────────────────────────────────
 
 interface AppState {
   isAuthenticated: boolean;
@@ -44,11 +60,11 @@ interface AppState {
   sidebarOpen: boolean;
   dealModalId: number | null;
   invoiceModalDealId: number | null;
-  whatsappConnected: boolean;
-  whatsappConnecting: boolean;
-  whatsappConfig: { phone: string; accountName: string; accountId: string; apiToken: string };
+  // Multi-number WhatsApp state
   whatsappNumbers: WhatsAppNumber[];
+  whatsappConnecting: boolean;
   activeNumberId: string | 'all';
+  currentPlan: Plan;
   quickMessageDealId: number | null;
   backendDealIds: Record<number, string>;
   backendByPhone: Record<string, string>;
@@ -56,7 +72,15 @@ interface AppState {
   appError: string | null;
 }
 
+// ─── Context type ─────────────────────────────────────────────────────────
+
 interface AppContextType extends AppState {
+  // Derived helpers (computed, not stored)
+  whatsappConnected: boolean;
+  connectedNumbers: WhatsAppNumber[];
+  numberLimit: number;
+  canAddNumber: boolean;
+  // Auth
   doLogin: (email: string, password: string) => Promise<void>;
   doLogout: () => void;
   navigate: (page: string) => void;
@@ -64,28 +88,33 @@ interface AppContextType extends AppState {
   toggleDark: () => void;
   t: (key: string) => string;
   showToast: (msg: string, type?: Toast['type']) => void;
+  // Chat / deals
   setCurrentChatId: (id: number) => void;
   moveDeal: (dealId: number, newStage: string) => void;
-  sendMessage: (chatId: number, text: string) => void;
+  sendMessage: (chatId: number, text: string, numberId?: string) => void;
   setSidebarOpen: (open: boolean) => void;
   openDealModal: (dealId: number) => void;
   closeDealModal: () => void;
   openInvoiceModal: (dealId: number) => void;
   closeInvoiceModal: () => void;
   markChatRead: (chatId: number) => void;
-  connectWhatsApp: (config: AppState['whatsappConfig']) => void;
-  disconnectWhatsApp: () => void;
   setActiveNumberId: (id: string | 'all') => void;
   openQuickMessage: (dealId: number) => void;
   closeQuickMessage: () => void;
-  sendDealMessage: (dealId: number, text: string) => void;
+  sendDealMessage: (dealId: number, text: string, numberId?: string) => void;
   retryHydration: () => void;
+  // Multi-number WhatsApp management
+  addWhatsAppNumber: (config: Omit<WhatsAppNumber, 'id' | 'status'>) => void;
+  removeWhatsAppNumber: (id: string) => void;
+  // Legacy single-connect shim
+  connectWhatsApp: (config: { phone: string; accountName: string; accountId: string; apiToken: string }) => void;
+  disconnectWhatsApp: (id?: string) => void;
 }
 
 const AppContext = createContext<AppContextType>(null!);
 export function useApp() { return useContext(AppContext); }
 
-const EMPTY_WA = { phone: '', accountName: '', accountId: '', apiToken: '' };
+// ─── Helpers ──────────────────────────────────────────────────────────────
 
 const MOCK_NUMBERS: WhatsAppNumber[] = [
   { id: '1', phone: '+94 77 123 4567', name: 'Sales Line', status: 'connected' },
@@ -105,19 +134,19 @@ function makeInitialState(): AppState {
     sidebarOpen: false,
     dealModalId: null,
     invoiceModalDealId: null,
-    whatsappConnected: false,
-    whatsappConnecting: false,
-    whatsappConfig: EMPTY_WA,
     whatsappNumbers: MOCK_NUMBERS,
+    whatsappConnecting: false,
     activeNumberId: 'all',
+    currentPlan: 'pro',
     quickMessageDealId: null,
     backendDealIds: {},
     backendByPhone: {},
-    // Show spinner immediately if a token already exists
     isLoading: Boolean(getStoredToken()),
     appError: null,
   };
 }
+
+// ─── Provider ─────────────────────────────────────────────────────────────
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AppState>(makeInitialState);
@@ -136,7 +165,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setTimeout(() => setState(s => ({ ...s, toasts: s.toasts.filter(t => t.id !== id) })), 3500);
   }, []);
 
-  // Hydrate workspace from backend
+  // ── Hydrate from backend ────────────────────────────────────────────────
+
   const hydrateFromBackend = useCallback(async () => {
     setState(s => ({ ...s, isLoading: true, appError: null }));
     try {
@@ -152,7 +182,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         backendDealIds[uiId] = d.id;
         backendByPhone[phone] = d.id;
         
-        // Randomly assign to a WhatsApp number for demo purposes
         const waNumber = MOCK_NUMBERS[idx % MOCK_NUMBERS.length].phone;
 
         return {
@@ -170,7 +199,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           notes: d?.notes ?? '',
           assignee: d?.assignedUser?.fullName ?? 'Unassigned',
           product: d?.title ?? 'Service',
-          waNumber, // 👈 Added this
+          waNumber,
         };
       });
 
@@ -183,7 +212,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!backendDealIds[mappedUiId]) backendDealIds[mappedUiId] = d.id;
         backendByPhone[phone] = d.id;
         
-        // Randomly assign to a WhatsApp number for demo purposes
         const waNumber = MOCK_NUMBERS[idx % MOCK_NUMBERS.length].phone;
 
         return {
@@ -194,7 +222,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
           unread: Number(d?.unreadCount ?? 0),
           time: d?.lastMessageAt ? 'Just now' : '—',
           messages: [{ from: 'them' as const, text: d?.description ?? d?.title ?? 'Conversation started.', time: '—' }],
-          waNumber, // 👈 Added this
+          waNumber,
         };
       });
 
@@ -203,7 +231,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         currentChatId: chats[0]?.id ?? null,
         backendDealIds, backendByPhone,
         isLoading: false, isAuthenticated: true, appError: null,
-        whatsappConnected: true, // Set to true for demo if we have data
       }));
     } catch (e: any) {
       const is401 = e?.message?.includes('401') || e?.message?.toLowerCase().includes('unauthorized');
@@ -219,14 +246,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Auto-hydrate on mount if token exists
   useEffect(() => {
     if (getStoredToken()) hydrateFromBackend();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [hydrateFromBackend]);
 
   const doLogin = useCallback(async (email: string, password: string) => {
-    await apiLogin(email, password); // stores token in localStorage
+    await apiLogin(email, password);
     await hydrateFromBackend();
   }, [hydrateFromBackend]);
 
@@ -269,18 +294,29 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     });
   }, [showToast]);
 
-  const connectWhatsApp = useCallback((config: AppState['whatsappConfig']) => {
-    setState(s => ({ ...s, whatsappConnecting: true }));
-    setTimeout(() => {
-      setState(s => ({ ...s, whatsappConnected: true, whatsappConnecting: false, whatsappConfig: config }));
-      showToast('WhatsApp Business API connected! ✅', 'success');
-    }, 2000);
+  const setActiveNumberId = useCallback((id: string | 'all') => {
+    setState(s => ({ ...s, activeNumberId: id }));
+  }, []);
+
+  const addWhatsAppNumber = useCallback((config: Omit<WhatsAppNumber, 'id' | 'status'>) => {
+    const newNum: WhatsAppNumber = { ...config, id: Math.random().toString(36).slice(2, 10), status: 'connected' };
+    setState(s => ({ ...s, whatsappNumbers: [...s.whatsappNumbers, newNum] }));
+    showToast('WhatsApp number added! ✅', 'success');
   }, [showToast]);
 
-  const disconnectWhatsApp = useCallback(() => {
-    setState(s => ({ ...s, whatsappConnected: false, whatsappConfig: EMPTY_WA }));
-    showToast('WhatsApp disconnected', 'warning');
+  const removeWhatsAppNumber = useCallback((id: string) => {
+    setState(s => ({ ...s, whatsappNumbers: s.whatsappNumbers.filter(n => n.id !== id) }));
+    showToast('WhatsApp number removed', 'warning');
   }, [showToast]);
+
+  const connectWhatsApp = useCallback((config: { phone: string; accountName: string; accountId: string; apiToken: string }) => {
+    addWhatsAppNumber({ phone: config.phone, name: config.accountName });
+  }, [addWhatsAppNumber]);
+
+  const disconnectWhatsApp = useCallback((id?: string) => {
+    if (id) removeWhatsAppNumber(id);
+    else if (state.whatsappNumbers.length > 0) removeWhatsAppNumber(state.whatsappNumbers[0].id);
+  }, [state.whatsappNumbers, removeWhatsAppNumber]);
 
   const sendDealMessage = useCallback((dealId: number, text: string) => {
     const now = new Date();
@@ -296,12 +332,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     showToast('Message sent via WhatsApp ✓✓', 'success');
   }, [showToast]);
 
-  const setActiveNumberId = useCallback((id: string | 'all') => {
-    setState(s => ({ ...s, activeNumberId: id }));
-  }, []);
-
   const ctx: AppContextType = {
     ...state,
+    whatsappConnected: state.whatsappNumbers.length > 0,
+    connectedNumbers: state.whatsappNumbers,
+    numberLimit: PLAN_LIMITS[state.currentPlan],
+    canAddNumber: state.whatsappNumbers.length < PLAN_LIMITS[state.currentPlan],
     doLogin, doLogout, navigate,
     setLang: lang => setState(s => ({ ...s, lang })),
     toggleDark: () => setState(s => ({ ...s, darkMode: !s.darkMode })),
@@ -313,8 +349,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     closeDealModal: () => setState(s => ({ ...s, dealModalId: null })),
     openInvoiceModal: id => setState(s => ({ ...s, invoiceModalDealId: id, dealModalId: null })),
     closeInvoiceModal: () => setState(s => ({ ...s, invoiceModalDealId: null })),
-    markChatRead, connectWhatsApp, disconnectWhatsApp,
-    setActiveNumberId,
+    markChatRead, setActiveNumberId,
+    addWhatsAppNumber, removeWhatsAppNumber,
+    connectWhatsApp, disconnectWhatsApp,
     openQuickMessage: id => setState(s => ({ ...s, quickMessageDealId: id })),
     closeQuickMessage: () => setState(s => ({ ...s, quickMessageDealId: null })),
     sendDealMessage,

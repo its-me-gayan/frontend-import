@@ -1,10 +1,47 @@
-import { useApp, type WhatsAppNumber } from '@/context/AppContext';
+import { useApp, type WhatsAppNumber, type WaRouting, PLAN_LIMITS } from '@/context/AppContext';
 import { useState } from 'react';
 
+// ─── Small reusable bits ──────────────────────────────────────────────────
+
+function StatusDot({ connected }: { connected: boolean }) {
+  return (
+    <span
+      className={`inline-block w-1.5 h-1.5 rounded-full ${connected ? 'bg-emerald-500 animate-pulse-dot' : 'bg-muted-foreground'}`}
+    />
+  );
+}
+
+function Badge({ children, variant = 'default' }: { children: React.ReactNode; variant?: 'green' | 'blue' | 'default' }) {
+  const cls = {
+    green:   'bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300',
+    blue:    'bg-blue-100 dark:bg-blue-900/30 text-blue-800 dark:text-blue-300',
+    default: 'bg-muted text-muted-foreground',
+  }[variant];
+  return (
+    <span className={`inline-flex items-center gap-1 text-[10px] font-semibold px-2 py-0.5 rounded-full ${cls}`}>
+      {children}
+    </span>
+  );
+}
+
+const ROUTING_LABELS: Record<WaRouting, string> = {
+  deals:      'Deals',
+  inbox:      'Inbox',
+  invoices:   'Invoices',
+  broadcasts: 'Broadcasts',
+};
+
 export default function SettingsPage() {
-  const { t, showToast, whatsappNumbers, doLogout } = useApp();
+  const { 
+    t, showToast, whatsappNumbers, doLogout, currentPlan, 
+    addWhatsAppNumber, removeWhatsAppNumber 
+  } = useApp();
+  
   const [step, setStep] = useState(0); // 0=list, 1=form, 2=connecting
   const [form, setForm] = useState({ phone: '', name: '', accountId: '', apiToken: '' });
+
+  const numberLimit = PLAN_LIMITS[currentPlan];
+  const canAddNumber = whatsappNumbers.length < numberLimit;
 
   const handleConnect = () => {
     if (!form.phone || !form.name || !form.apiToken) {
@@ -14,6 +51,7 @@ export default function SettingsPage() {
     setStep(2);
     // Simulate connection
     setTimeout(() => {
+      addWhatsAppNumber({ phone: form.phone, name: form.name });
       showToast('New WhatsApp number connected! ✅', 'success');
       setStep(0);
       setForm({ phone: '', name: '', accountId: '', apiToken: '' });
@@ -40,9 +78,11 @@ export default function SettingsPage() {
         <div className="flex items-center justify-between mb-4">
           <div>
             <div className="text-sm font-bold text-foreground">WhatsApp Business Numbers</div>
-            <div className="text-xs text-muted-foreground mt-0.5">Manage your connected WhatsApp API lines</div>
+            <div className="text-xs text-muted-foreground mt-0.5">
+              Manage your connected WhatsApp API lines ({whatsappNumbers.length}/{numberLimit})
+            </div>
           </div>
-          {step === 0 && (
+          {step === 0 && canAddNumber && (
             <button 
               onClick={() => setStep(1)}
               className="bg-emerald-500 hover:bg-emerald-600 text-primary-foreground text-xs font-bold px-3 py-1.5 rounded-lg transition"
@@ -57,7 +97,7 @@ export default function SettingsPage() {
             {whatsappNumbers.map((num: WhatsAppNumber) => (
               <div key={num.id} className="flex items-center justify-between p-3 border border-border rounded-lg bg-background/50">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-emerald-600">
+                  <div className="w-10 h-10 rounded-full bg-emerald-100 dark:bg-emerald-900/30 flex items-center justify-center text-base flex-shrink-0">
                     📱
                   </div>
                   <div>
@@ -66,26 +106,33 @@ export default function SettingsPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <div className="flex items-center gap-1.5 bg-emerald-100 dark:bg-emerald-900/30 text-emerald-800 dark:text-emerald-300 text-[10px] font-bold px-2 py-0.5 rounded-full">
-                    <div className="w-1.5 h-1.5 bg-emerald-500 rounded-full animate-pulse-dot" />
-                    Connected
-                  </div>
+                  <Badge variant={num.status === 'connected' ? 'green' : 'default'}>
+                    <StatusDot connected={num.status === 'connected'} />
+                    {num.status === 'connected' ? 'Connected' : 'Disconnected'}
+                  </Badge>
                   <button 
-                    onClick={() => showToast('Number settings coming soon!', 'info')}
-                    className="text-xs text-muted-foreground hover:text-foreground"
+                    onClick={() => removeWhatsAppNumber(num.id)}
+                    className="text-xs text-destructive hover:bg-destructive/10 p-1.5 rounded-md transition"
+                    title="Disconnect"
                   >
-                    ⚙️
+                    🗑️
                   </button>
                 </div>
               </div>
             ))}
+            {whatsappNumbers.length === 0 && (
+              <div className="text-center py-6 border border-dashed border-border rounded-lg">
+                <p className="text-sm text-muted-foreground">No WhatsApp numbers connected.</p>
+                <button onClick={() => setStep(1)} className="text-primary text-xs font-bold mt-2 hover:underline">Connect your first number</button>
+              </div>
+            )}
           </div>
         )}
 
         {step === 1 && (
           <div className="animate-in fade-in slide-in-from-bottom-2">
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-xs font-bold flex items-center justify-center">1</div>
+              <div className="w-6 h-6 rounded-full bg-primary text-primary-foreground text-[11px] font-bold flex items-center justify-center">1</div>
               <span className="text-sm font-semibold text-foreground">Add new WhatsApp Business line</span>
             </div>
             <div className="grid grid-cols-2 gap-3 mb-4">
@@ -167,15 +214,15 @@ export default function SettingsPage() {
         <div className="text-xs text-muted-foreground mb-4">Manage your subscription</div>
         <div className="grid grid-cols-3 gap-3">
           {[
-            { name: 'Starter', price: 'LKR 2,990', features: '1 WhatsApp number, 5 users, 500 deals', current: false },
-            { name: 'Pro', price: 'LKR 7,990', features: '3 WhatsApp numbers, 15 users, unlimited deals, reports', current: true },
-            { name: 'Enterprise', price: 'LKR 19,990', features: 'Unlimited everything, API access, priority support', current: false },
+            { id: 'starter', name: 'Starter', price: 'LKR 2,990', features: '1 WhatsApp number, 5 users, 500 deals' },
+            { id: 'pro', name: 'Pro', price: 'LKR 7,990', features: '3 WhatsApp numbers, 15 users, unlimited deals, reports' },
+            { id: 'enterprise', name: 'Enterprise', price: 'LKR 19,990', features: 'Unlimited everything, API access, priority support' },
           ].map(plan => (
-            <div key={plan.name} className={`border rounded-lg p-4 transition-all ${plan.current ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
+            <div key={plan.id} className={`border rounded-lg p-4 transition-all ${currentPlan === plan.id ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'}`}>
               <div className="text-sm font-bold text-foreground">{plan.name}</div>
               <div className="text-lg font-extrabold text-primary mt-1">{plan.price}</div>
               <div className="text-[10px] text-muted-foreground mt-2 leading-relaxed">{plan.features}</div>
-              {plan.current ? (
+              {currentPlan === plan.id ? (
                 <div className="mt-3 text-[10px] font-bold text-primary text-center bg-primary/10 py-1 rounded">CURRENT PLAN</div>
               ) : (
                 <button className="mt-3 w-full text-[10px] font-bold border border-border py-1 rounded hover:bg-muted">UPGRADE</button>
