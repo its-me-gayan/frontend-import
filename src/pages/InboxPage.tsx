@@ -67,51 +67,7 @@ export default function InboxPage() {
         </p>
       </div>
 
-      {/* Number Filter — PROMINENT DISPLAY */}
-      {whatsappNumbers.length > 0 && (
-        <div className="mb-4 flex flex-wrap gap-2">
-          <button
-            onClick={() => setActiveNumberId('all')}
-            className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border-2 flex items-center gap-2 ${
-              activeNumberId === 'all'
-                ? 'border-primary bg-primary/10 text-primary shadow-md'
-                : 'border-border bg-background text-foreground hover:border-primary/50'
-            }`}
-          >
-            <span className="text-base">💬</span>
-            All Chats ({chats.length})
-          </button>
 
-          {whatsappNumbers.map((num, idx) => {
-            const numChats = chats.filter(c => c.waNumber === num.phone);
-            const unreadCount = numChats.reduce((sum, c) => sum + c.unread, 0);
-            const isActive = activeNumberId === num.id;
-            return (
-              <button
-                key={num.id}
-                onClick={() => setActiveNumberId(num.id)}
-                className={`px-4 py-2 rounded-lg text-sm font-semibold transition-all border-2 flex items-center gap-2 relative ${
-                  isActive
-                    ? 'border-emerald-500 bg-emerald-500/10 text-emerald-700 dark:text-emerald-300 shadow-md'
-                    : 'border-border bg-background text-foreground hover:border-emerald-500/50'
-                }`}
-              >
-                <div className={`w-2 h-2 rounded-full ${isActive ? 'bg-emerald-500 animate-pulse-dot' : 'bg-muted-foreground'}`}></div>
-                <div className="flex flex-col items-start">
-                  <span className="leading-tight">{num.name}</span>
-                  <span className="text-[10px] font-normal text-muted-foreground">{num.phone}</span>
-                </div>
-                <span className="ml-1 text-xs font-bold bg-background/50 px-2 py-0.5 rounded-full">{numChats.length}</span>
-                {unreadCount > 0 && (
-                  <span className="absolute -top-2 -right-2 w-5 h-5 bg-destructive text-destructive-foreground text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {unreadCount}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </div>
-      )}
 
       <div className="flex bg-card border border-border rounded-lg overflow-hidden" style={{ height: 'calc(100vh - 240px)' }}>
         {/* Chat List */}
