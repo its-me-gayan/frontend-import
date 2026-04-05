@@ -1,3 +1,14 @@
+export function getWaNumberStyle(waPhone: string | undefined, numbers: { id: string; phone: string; name: string }[]) {
+  const idx = numbers.findIndex(n => n.phone === waPhone);
+  const palettes = [
+    { dot: 'bg-emerald-500', badge: 'bg-emerald-100 text-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300', chipBorder: 'border-emerald-200 dark:border-emerald-800', chipBg: 'bg-emerald-50 dark:bg-emerald-900/20' },
+    { dot: 'bg-blue-500',    badge: 'bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-300',             chipBorder: 'border-blue-200 dark:border-blue-800',    chipBg: 'bg-blue-50 dark:bg-blue-900/20' },
+    { dot: 'bg-violet-500',  badge: 'bg-violet-100 text-violet-800 dark:bg-violet-900/30 dark:text-violet-300',     chipBorder: 'border-violet-200 dark:border-violet-800', chipBg: 'bg-violet-50 dark:bg-violet-900/20' },
+    { dot: 'bg-amber-500',   badge: 'bg-amber-100 text-amber-800 dark:bg-amber-900/30 dark:text-amber-300',         chipBorder: 'border-amber-200 dark:border-amber-800',   chipBg: 'bg-amber-50 dark:bg-amber-900/20' },
+  ];
+  return { ...palettes[Math.max(0, idx) % palettes.length], name: numbers[idx]?.name, found: idx >= 0 };
+}
+
 export function fmtLKR(n: number): string {
   return 'LKR ' + n.toLocaleString('en-LK');
 }

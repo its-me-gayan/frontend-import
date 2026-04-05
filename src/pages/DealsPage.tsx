@@ -1,11 +1,12 @@
 import { useApp } from '@/context/AppContext';
-import { fmtLKR, getInitials, getStageColor, getProbBadge } from '@/lib/helpers';
+import { fmtLKR, getInitials, getStageColor, getProbBadge, getWaNumberStyle } from '@/lib/helpers';
 import { useState } from 'react';
 
 export default function DealsPage() {
-  const { t, deals, openDealModal, openInvoiceModal, showToast } = useApp();
+  const { t, deals, openDealModal, openInvoiceModal, showToast, whatsappNumbers } = useApp();
   const [search, setSearch] = useState('');
   const [stageFilter, setStageFilter] = useState('');
+  const [lineFilter, setLineFilter] = useState('');
 
   const stageLabels: Record<string, string> = { new: 'New Leads', quoted: 'Quoted', negotiation: 'Negotiation', won: 'Won', lost: 'Lost' };
   const stageBadge: Record<string, string> = {
@@ -18,7 +19,8 @@ export default function DealsPage() {
 
   const filtered = deals.filter(d =>
     (d.name.toLowerCase().includes(search.toLowerCase()) || d.company.toLowerCase().includes(search.toLowerCase())) &&
-    (stageFilter === '' || d.stage === stageFilter)
+    (stageFilter === '' || d.stage === stageFilter) &&
+    (lineFilter === '' || d.waNumber === lineFilter)
   );
 
   return (
@@ -40,6 +42,15 @@ export default function DealsPage() {
           <option value="">All Stages</option>
           {Object.entries(stageLabels).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
         </select>
+        {whatsappNumbers.length > 1 && (
+          <select className="bg-background border border-border rounded-lg px-3 py-2 text-sm text-foreground outline-none"
+            value={lineFilter} onChange={e => setLineFilter(e.target.value)}>
+            <option value="">All Lines</option>
+            {whatsappNumbers.map(n => (
+              <option key={n.id} value={n.phone}>{n.name}</option>
+            ))}
+          </select>
+        )}
       </div>
 
       <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -61,6 +72,15 @@ export default function DealsPage() {
                       <div>
                         <div className="text-sm font-semibold text-foreground">{d.name}</div>
                         <div className="text-[11px] text-muted-foreground">{d.phone}</div>
+                        {d.waNumber && (() => {
+                          const style = getWaNumberStyle(d.waNumber, whatsappNumbers);
+                          return style.found ? (
+                            <div className={`mt-1 inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${style.badge}`}>
+                              <div className={`w-1.5 h-1.5 rounded-full ${style.dot}`} />
+                              {style.name}
+                            </div>
+                          ) : null;
+                        })()}
                       </div>
                     </div>
                   </td>

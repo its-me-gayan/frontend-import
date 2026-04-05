@@ -1,5 +1,5 @@
 import { useApp } from '@/context/AppContext';
-import { getInitials, formatPhoneForApi } from '@/lib/helpers';
+import { getInitials, formatPhoneForApi, getWaNumberStyle } from '@/lib/helpers';
 import { useState, useEffect, useRef, useMemo } from 'react';
 
 export default function InboxPage() {
@@ -54,18 +54,65 @@ export default function InboxPage() {
     markChatRead(chatId);
   };
 
+  const activeStyle = activeNumber ? getWaNumberStyle(activeNumber.phone, whatsappNumbers) : null;
+
   return (
     <div>
-      <div className="mb-4">
+      <div className="mb-3">
         <h2 className="text-xl font-extrabold font-display text-foreground">
           {t('inbox_title')}
         </h2>
-        <p className="text-sm text-muted-foreground mt-1">
-          {activeNumberId === 'all' 
-            ? t('inbox_subtitle')
-            : `${t('inbox_subtitle')} • ${activeNumber?.name}`}
-        </p>
+        <p className="text-sm text-muted-foreground mt-1">{t('inbox_subtitle')}</p>
       </div>
+
+      {/* ── Scope context chip ── */}
+      {whatsappNumbers.length > 0 && (
+        <div className={`mb-4 flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border text-xs ${
+          activeNumberId === 'all'
+            ? 'bg-card border-border'
+            : `${activeStyle?.chipBg} ${activeStyle?.chipBorder}`
+        }`}>
+          {activeNumberId === 'all' ? (
+            <>
+              <div className="flex items-center gap-1">
+                {whatsappNumbers.map((n) => (
+                  <div key={n.id} className={`w-2 h-2 rounded-full ${getWaNumberStyle(n.phone, whatsappNumbers).dot}`} />
+                ))}
+              </div>
+              <span className="font-semibold text-foreground">All inboxes</span>
+              <span className="text-border">·</span>
+              <span className="text-muted-foreground">{filteredChats.length} conversation{filteredChats.length !== 1 ? 's' : ''}</span>
+              {(() => {
+                const totalUnread = filteredChats.reduce((s, c) => s + c.unread, 0);
+                return totalUnread > 0 ? (
+                  <>
+                    <span className="text-border">·</span>
+                    <span className="font-semibold text-destructive">{totalUnread} unread</span>
+                  </>
+                ) : null;
+              })()}
+            </>
+          ) : (
+            <>
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 animate-pulse-dot ${activeStyle?.dot}`} />
+              <span className="font-semibold text-foreground">{activeNumber?.name}</span>
+              <span className="text-muted-foreground">{activeNumber?.phone}</span>
+              <span className="text-border">·</span>
+              <span className="text-muted-foreground">{filteredChats.length} chat{filteredChats.length !== 1 ? 's' : ''}</span>
+              {(() => {
+                const unread = filteredChats.reduce((s, c) => s + c.unread, 0);
+                return unread > 0 ? (
+                  <>
+                    <span className="text-border">·</span>
+                    <span className="font-semibold text-destructive">{unread} unread</span>
+                  </>
+                ) : null;
+              })()}
+            </>
+          )}
+          <span className="ml-auto text-muted-foreground/60 text-[10px]">Switch from the top bar ↑</span>
+        </div>
+      )}
 
 
 

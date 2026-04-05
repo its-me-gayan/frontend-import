@@ -1,5 +1,5 @@
 import { useApp } from '@/context/AppContext';
-import { fmtLKR, getStageColor, getInitials, getProbBadge } from '@/lib/helpers';
+import { fmtLKR, getStageColor, getInitials, getProbBadge, getWaNumberStyle } from '@/lib/helpers';
 import React, { useState, useMemo } from 'react';
 
 const stages = [
@@ -25,22 +25,53 @@ export default function PipelinePage() {
     return deals.filter(d => d.waNumber === activeNumber?.phone);
   }, [deals, activeNumberId, activeNumber]);
 
+  const activeStyle = activeNumber ? getWaNumberStyle(activeNumber.phone, whatsappNumbers) : null;
+
   return (
     <div>
-      <div className="flex items-center justify-between mb-5">
+      <div className="flex items-center justify-between mb-3">
         <div>
           <h2 className="text-xl font-extrabold font-display text-foreground">
             {t('pipeline_title')}
           </h2>
-          <p className="text-sm text-muted-foreground mt-1">
-            {activeNumberId === 'all' 
-              ? t('pipeline_subtitle')
-              : `${t('pipeline_subtitle')} • ${activeNumber?.name}`}
-          </p>
+          <p className="text-sm text-muted-foreground mt-1">{t('pipeline_subtitle')}</p>
         </div>
         <button className="bg-primary text-primary-foreground text-sm font-semibold px-4 py-2 rounded-lg hover:opacity-90 transition"
           onClick={() => showToast('Add Deal form coming soon! 📋', 'info')}>{t('add_deal')}</button>
       </div>
+
+      {/* ── Scope context chip ── */}
+      {whatsappNumbers.length > 0 && (
+        <div className={`mb-5 flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border text-xs ${
+          activeNumberId === 'all'
+            ? 'bg-card border-border'
+            : `${activeStyle?.chipBg} ${activeStyle?.chipBorder}`
+        }`}>
+          {activeNumberId === 'all' ? (
+            <>
+              <div className="flex items-center gap-1">
+                {whatsappNumbers.map((n, i) => (
+                  <div key={n.id} className={`w-2 h-2 rounded-full ${getWaNumberStyle(n.phone, whatsappNumbers).dot}`} />
+                ))}
+              </div>
+              <span className="font-semibold text-foreground">All numbers</span>
+              <span className="text-border">·</span>
+              <span className="text-muted-foreground">{filteredDeals.length} deals across {whatsappNumbers.length} lines</span>
+            </>
+          ) : (
+            <>
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${activeStyle?.dot}`} />
+              <span className="font-semibold text-foreground">{activeNumber?.name}</span>
+              <span className="text-muted-foreground">{activeNumber?.phone}</span>
+              <span className="text-border">·</span>
+              <span className="text-muted-foreground">{filteredDeals.length} deal{filteredDeals.length !== 1 ? 's' : ''}</span>
+              <span className="text-border">·</span>
+              <span className="text-muted-foreground">{fmtLKR(filteredDeals.reduce((s, d) => s + d.value, 0))} pipeline value</span>
+            </>
+          )}
+          <span className="ml-auto text-muted-foreground/60 text-[10px]">Switch from the top bar ↑</span>
+        </div>
+      )}
 
 
 
@@ -91,13 +122,11 @@ export default function PipelinePage() {
                         <div className="text-[13px] font-semibold text-foreground">{deal.name}</div>
                         <div className="text-[11px] text-muted-foreground mt-0.5">{deal.company} · {deal.city}</div>
                         {activeNumberId === 'all' && deal.waNumber && (() => {
-                          const num = whatsappNumbers.find(n => n.phone === deal.waNumber);
-                          const colors = ['bg-emerald-500', 'bg-blue-500', 'bg-violet-500', 'bg-amber-500'];
-                          const ci = whatsappNumbers.findIndex(n => n.phone === deal.waNumber);
-                          return num ? (
+                          const style = getWaNumberStyle(deal.waNumber, whatsappNumbers);
+                          return style.found ? (
                             <div className="flex items-center gap-1 mt-1">
-                              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${colors[ci % colors.length]}`} />
-                              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">{num.name}</span>
+                              <div className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${style.dot}`} />
+                              <span className="text-[9px] font-bold text-muted-foreground uppercase tracking-wide">{style.name}</span>
                             </div>
                           ) : null;
                         })()}

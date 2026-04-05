@@ -1,40 +1,53 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 import { Chart, registerables } from 'chart.js';
 import { useApp } from '@/context/AppContext';
-import { fmtLKR, getStageColor } from '@/lib/helpers';
+import { fmtLKR, getStageColor, getWaNumberStyle } from '@/lib/helpers';
 
 Chart.register(...registerables);
 
 export default function DashboardPage() {
-  const { t, deals, darkMode, openDealModal } = useApp();
-  const revChartRef = useRef<HTMLCanvasElement>(null);
+  const { t, deals, darkMode, openDealModal, whatsappNumbers, activeNumberId } = useApp();
+  const revChartRef  = useRef<HTMLCanvasElement>(null);
   const stageChartRef = useRef<HTMLCanvasElement>(null);
-  const chartsRef = useRef<Chart[]>([]);
+  const chartsRef    = useRef<Chart[]>([]);
 
-  const totalPipeline = deals.filter(d => !['won', 'lost'].includes(d.stage)).reduce((s, d) => s + d.value, 0);
-  const dealsWon = deals.filter(d => d.stage === 'won').length;
-  const totalClosed = deals.filter(d => ['won', 'lost'].includes(d.stage)).length;
-  const winRate = totalClosed > 0 ? Math.round((dealsWon / totalClosed) * 100) : 0;
-  const activeChats = 6;
+  // Active number meta
+  const activeNumber = whatsappNumbers.find(n => n.id === activeNumberId);
+  const activeStyle  = activeNumber ? getWaNumberStyle(activeNumber.phone, whatsappNumbers) : null;
+
+  // All deal calculations respect the active number scope
+  const filteredDeals = useMemo(() =>
+    activeNumberId === 'all'
+      ? deals
+      : deals.filter(d => d.waNumber === activeNumber?.phone),
+    [deals, activeNumberId, activeNumber]
+  );
+
+  const totalPipeline = filteredDeals.filter(d => !['won', 'lost'].includes(d.stage)).reduce((s, d) => s + d.value, 0);
+  const dealsWon      = filteredDeals.filter(d => d.stage === 'won').length;
+  const totalClosed   = filteredDeals.filter(d => ['won', 'lost'].includes(d.stage)).length;
+  const winRate       = totalClosed > 0 ? Math.round((dealsWon / totalClosed) * 100) : 0;
+  const activeChats   = 6;
 
   const kpis = [
-    { label: t('kpi_pipeline'), value: fmtLKR(totalPipeline), change: '↑ 18%', up: true, border: 'kpi-border-blue' },
-    { label: t('kpi_won'), value: String(dealsWon), change: '↑ 2 ' + t('this_month'), up: true, border: 'kpi-border-green' },
-    { label: t('kpi_chats'), value: String(activeChats), change: '↑ 3 ' + t('vs_last'), up: true, border: 'kpi-border-gold' },
-    { label: t('kpi_winrate'), value: winRate + '%', change: '↑ 5% ' + t('vs_last'), up: true, border: 'kpi-border-red' },
+    { label: t('kpi_pipeline'), value: fmtLKR(totalPipeline),  change: '↑ 18%',                        up: true,  border: 'kpi-border-blue' },
+    { label: t('kpi_won'),      value: String(dealsWon),        change: '↑ 2 ' + t('this_month'),       up: true,  border: 'kpi-border-green' },
+    { label: t('kpi_chats'),    value: String(activeChats),     change: '↑ 3 ' + t('vs_last'),          up: true,  border: 'kpi-border-gold' },
+    { label: t('kpi_winrate'),  value: winRate + '%',           change: '↑ 5% ' + t('vs_last'),         up: true,  border: 'kpi-border-red' },
   ];
 
   const activities = [
-    { icon: '💬', color: 'bg-blue-100 dark:bg-blue-900/30', msg: '<b>Nimali Fernando</b> sent a new message', time: '9 min ago' },
-    { icon: '🎉', color: 'bg-emerald-100 dark:bg-emerald-900/30', msg: '<b>Deal Won!</b> Priya Wijesinghe paid LKR 95,000', time: '2 hrs ago' },
-    { icon: '📋', color: 'bg-amber-100 dark:bg-amber-900/30', msg: '<b>Kumara Silva</b> viewed the quote', time: '3 hrs ago' },
+    { icon: '💬', color: 'bg-blue-100 dark:bg-blue-900/30',   msg: '<b>Nimali Fernando</b> sent a new message',               time: '9 min ago' },
+    { icon: '🎉', color: 'bg-emerald-100 dark:bg-emerald-900/30', msg: '<b>Deal Won!</b> Priya Wijesinghe paid LKR 95,000',    time: '2 hrs ago' },
+    { icon: '📋', color: 'bg-amber-100 dark:bg-amber-900/30', msg: '<b>Kumara Silva</b> viewed the quote',                    time: '3 hrs ago' },
     { icon: '🔔', color: 'bg-purple-100 dark:bg-purple-900/30', msg: 'Reminder: Demo with <b>Kavindi Rajapaksa</b> tomorrow', time: '5 hrs ago' },
   ];
 
-  const stagesList = ['new', 'quoted', 'negotiation', 'won', 'lost'];
+  const stagesList  = ['new', 'quoted', 'negotiation', 'won', 'lost'];
   const stageColors: Record<string, string> = { new: '#0f6fbd', quoted: '#7c3aed', negotiation: '#d97706', won: '#059669', lost: '#dc2626' };
   const stageLabels: Record<string, string> = { new: t('col_new'), quoted: t('col_quoted'), negotiation: t('col_neg'), won: t('col_won'), lost: t('col_lost') };
 
+  // Re-build charts whenever dark mode, deals, or active number changes
   useEffect(() => {
     chartsRef.current.forEach(c => c.destroy());
     chartsRef.current = [];
@@ -53,7 +66,8 @@ export default function DashboardPage() {
     }
 
     if (stageChartRef.current) {
-      const counts = stagesList.map(s => deals.filter(d => d.stage === s).length);
+      // Doughnut uses filteredDeals so it reacts to the active number
+      const counts = stagesList.map(s => filteredDeals.filter(d => d.stage === s).length);
       chartsRef.current.push(new Chart(stageChartRef.current, {
         type: 'doughnut',
         data: { labels: stagesList.map(s => stageLabels[s]), datasets: [{ data: counts, backgroundColor: stagesList.map(s => stageColors[s]), borderWidth: 0 }] },
@@ -62,14 +76,45 @@ export default function DashboardPage() {
     }
 
     return () => { chartsRef.current.forEach(c => c.destroy()); };
-  }, [darkMode, deals]);
+  }, [darkMode, filteredDeals]);
 
   return (
     <div className="max-w-[1200px]">
-      <div className="mb-6">
+      <div className="mb-4">
         <h2 className="text-xl font-extrabold font-display text-foreground">{t('dashboard_title')}</h2>
         <p className="text-sm text-muted-foreground mt-1">{t('dashboard_subtitle')}</p>
       </div>
+
+      {/* ── Scope context chip ── */}
+      {whatsappNumbers.length > 0 && (
+        <div className={`mb-5 flex items-center gap-2.5 px-3.5 py-2.5 rounded-lg border text-xs ${
+          activeNumberId === 'all'
+            ? 'bg-card border-border'
+            : `${activeStyle?.chipBg} ${activeStyle?.chipBorder}`
+        }`}>
+          {activeNumberId === 'all' ? (
+            <>
+              <div className="flex items-center gap-1">
+                {whatsappNumbers.map(n => (
+                  <div key={n.id} className={`w-2 h-2 rounded-full ${getWaNumberStyle(n.phone, whatsappNumbers).dot}`} />
+                ))}
+              </div>
+              <span className="font-semibold text-foreground">All numbers</span>
+              <span className="text-border">·</span>
+              <span className="text-muted-foreground">{filteredDeals.length} deals · {fmtLKR(totalPipeline)} active pipeline</span>
+            </>
+          ) : (
+            <>
+              <div className={`w-2 h-2 rounded-full flex-shrink-0 ${activeStyle?.dot}`} />
+              <span className="font-semibold text-foreground">{activeNumber?.name}</span>
+              <span className="text-muted-foreground">{activeNumber?.phone}</span>
+              <span className="text-border">·</span>
+              <span className="text-muted-foreground">{filteredDeals.length} deal{filteredDeals.length !== 1 ? 's' : ''} · {fmtLKR(totalPipeline)} pipeline</span>
+            </>
+          )}
+          <span className="ml-auto text-muted-foreground/60 text-[10px]">Switch from the top bar ↑</span>
+        </div>
+      )}
 
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
@@ -85,11 +130,19 @@ export default function DashboardPage() {
       {/* Pipeline Preview + Activity */}
       <div className="grid grid-cols-1 lg:grid-cols-5 gap-5 mb-6">
         <div className="lg:col-span-3 bg-card border border-border rounded-lg p-5">
-          <h3 className="text-sm font-bold text-foreground mb-3">{t('pipeline_title')}</h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-bold text-foreground">{t('pipeline_title')}</h3>
+            {activeNumberId !== 'all' && activeStyle && (
+              <div className={`inline-flex items-center gap-1.5 text-[10px] font-semibold px-2 py-0.5 rounded ${activeStyle.badge}`}>
+                <div className={`w-1.5 h-1.5 rounded-full ${activeStyle.dot}`} />
+                {activeNumber?.name}
+              </div>
+            )}
+          </div>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {stagesList.map(s => {
-              const sDeals = deals.filter(d => d.stage === s);
-              const total = sDeals.reduce((a, d) => a + d.value, 0);
+              const sDeals = filteredDeals.filter(d => d.stage === s);
+              const total  = sDeals.reduce((a, d) => a + d.value, 0);
               return (
                 <div key={s} className="min-w-[140px] bg-background border border-border rounded-lg p-3 flex-shrink-0">
                   <div className="flex items-center gap-1.5 mb-2">
@@ -97,12 +150,21 @@ export default function DashboardPage() {
                     <span className="text-[10px] font-bold uppercase" style={{ color: stageColors[s] }}>{stageLabels[s]}</span>
                     <span className="ml-auto text-[10px] font-bold text-muted-foreground">{sDeals.length}</span>
                   </div>
-                  {sDeals.slice(0, 2).map(d => (
-                    <div key={d.id} className="bg-background border border-border rounded-md p-2 mb-1.5 cursor-pointer hover:shadow-sm" onClick={() => openDealModal(d.id)}>
-                      <div className="text-xs font-semibold text-foreground truncate">{d.name}</div>
-                      <div className="text-[11px] font-bold mt-0.5" style={{ color: stageColors[s] }}>{fmtLKR(d.value)}</div>
-                    </div>
-                  ))}
+                  {sDeals.slice(0, 2).map(d => {
+                    const numStyle = d.waNumber ? getWaNumberStyle(d.waNumber, whatsappNumbers) : null;
+                    return (
+                      <div key={d.id} className="bg-background border border-border rounded-md p-2 mb-1.5 cursor-pointer hover:shadow-sm" onClick={() => openDealModal(d.id)}>
+                        <div className="text-xs font-semibold text-foreground truncate">{d.name}</div>
+                        <div className="text-[11px] font-bold mt-0.5" style={{ color: stageColors[s] }}>{fmtLKR(d.value)}</div>
+                        {activeNumberId === 'all' && numStyle?.found && (
+                          <div className="flex items-center gap-1 mt-1">
+                            <div className={`w-1 h-1 rounded-full ${numStyle.dot}`} />
+                            <span className="text-[9px] text-muted-foreground">{numStyle.name}</span>
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
                   {sDeals.length > 2 && <div className="text-[11px] text-muted-foreground text-center">+{sDeals.length - 2} more</div>}
                   <div className="text-[11px] font-bold mt-2" style={{ color: stageColors[s] }}>{fmtLKR(total)}</div>
                 </div>
@@ -133,12 +195,22 @@ export default function DashboardPage() {
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
         <div className="lg:col-span-2 bg-card border border-border rounded-lg p-5">
           <h3 className="text-sm font-bold text-foreground mb-1">Monthly Revenue (LKR)</h3>
-          <p className="text-xs text-muted-foreground mb-4">Jan – Apr 2026</p>
+          <p className="text-xs text-muted-foreground mb-4">Jan – Apr 2026 · all numbers</p>
           <canvas ref={revChartRef} height="80" />
         </div>
         <div className="bg-card border border-border rounded-lg p-5">
-          <h3 className="text-sm font-bold text-foreground mb-1">Deal Stages</h3>
-          <p className="text-xs text-muted-foreground mb-4">Current distribution</p>
+          <div className="flex items-center justify-between mb-1">
+            <h3 className="text-sm font-bold text-foreground">Deal Stages</h3>
+            {activeNumberId !== 'all' && activeStyle && (
+              <div className={`inline-flex items-center gap-1 text-[10px] font-semibold px-1.5 py-0.5 rounded ${activeStyle.badge}`}>
+                <div className={`w-1 h-1 rounded-full ${activeStyle.dot}`} />
+                {activeNumber?.name}
+              </div>
+            )}
+          </div>
+          <p className="text-xs text-muted-foreground mb-4">
+            {activeNumberId === 'all' ? 'Current distribution · all numbers' : `${filteredDeals.length} deals`}
+          </p>
           <div className="h-[200px]">
             <canvas ref={stageChartRef} />
           </div>
